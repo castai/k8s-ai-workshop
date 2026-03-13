@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Setup OpenCode with CAST AI AI Enabler (Qwen model) + MCP servers
+# Setup OpenCode with CAST AI AI Enabler (GLM model) + MCP servers
 # Can be run standalone or called from riddle setup scripts
 
 set -e
@@ -44,7 +44,7 @@ echo "  OpenCode + CAST AI Setup"
 echo "=================================================="
 echo ""
 
-# Static AI Enabler key (for Qwen model access)
+# Static AI Enabler key (for GLM model access)
 CASTAI_AI_ENABLER_KEY="f3ea65695a62661a973661925d072797dc1cc3a15f8168211c122a9e1bf664de"
 
 CASTAI_MCP_API_KEY=""
@@ -223,7 +223,7 @@ fi
 
 echo -e "${GREEN}OpenCode configured successfully!${NC}"
 echo ""
-echo "  Model:    qwen3-coder-next-fp8 (CAST AI AI Enabler)"
+echo "  Model:    glm-5-fp8 (CAST AI AI Enabler)"
 if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_MCP_API_KEY" ]; then
     echo "  MCP:      kubernetes + castai"
 else
@@ -236,4 +236,3 @@ fi
 echo ""
 echo -e "  Run ${BLUE}opencode${NC} to start coding."
 echo ""
-
