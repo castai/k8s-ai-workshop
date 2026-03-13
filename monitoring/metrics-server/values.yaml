@@ -1,0 +1,56 @@
+# metrics-server configuration for kind cluster
+# Required for kubectl top and HorizontalPodAutoscaler
+
+# Command-line arguments for metrics-server
+args:
+  # Allow insecure TLS for kind cluster (kubelet uses self-signed certs)
+  - --kubelet-insecure-tls
+  # Prefer internal IP for kubelet communication
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  # Metrics resolution (default: 60s)
+  - --metric-resolution=15s
+
+# Resource limits for workshop
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# Replica count (1 is sufficient for workshop)
+replicas: 1
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+
+# Priority class
+priorityClassName: "system-cluster-critical"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 443
+
+# API service configuration
+apiService:
+  create: true
+  insecureSkipTLSVerify: true
+
+# Host network (set to false for kind)
+hostNetwork:
+  enabled: false
+
+# Additional labels
+labels:
+  app: metrics-server
+  workshop: kubernetes-ai-ops

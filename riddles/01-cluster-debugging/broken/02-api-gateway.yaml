@@ -1,0 +1,306 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: riddle-1
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+        location /health {
+            return 200 'healthy\n';
+        }
+    }
+  healthcheck.sh: |
+    #!/bin/sh
+    HTML_PATH="/usr/share/nginx/html/index.html"
+    ORDER_ID=1000
+
+    while true; do
+      # Reset counters each cycle -rates reflect current state only
+      TOTAL_ORDERS=0
+      SUCCESSFUL_ORDERS=0
+      FAILED_PAYMENTS=0
+      FAILED_NOTIFICATIONS=0
+      ORDERS_LIST=""
+
+      # Check each backend service
+      PAYMENT_OK="false"
+      INVENTORY_OK="false"
+      NOTIFY_OK="false"
+      ORDER_OK="false"
+      SEARCH_OK="false"
+      RECO_OK="false"
+      ANALYTICS_OK="false"
+
+      RESP=$(wget -q -O- -T 3 "http://order-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then ORDER_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://payment-processor-svc:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then PAYMENT_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://inventory-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then INVENTORY_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://search-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then SEARCH_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://notification-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then NOTIFY_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://recommendation-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then RECO_OK="true"; fi
+
+      RESP=$(wget -q -O- -T 3 "http://analytics-service:8080/health" 2>/dev/null)
+      if echo "$RESP" | grep -q "healthy"; then ANALYTICS_OK="true"; fi
+
+      # Simulate 5 orders based on current state
+      for i in 1 2 3 4 5; do
+        ORDER_ID=$((ORDER_ID + 1))
+        TOTAL_ORDERS=$((TOTAL_ORDERS + 1))
+        FAILED_STEP=""
+        TS=$(date -u '+%H:%M:%S')
+
+        if [ "$ORDER_OK" != "true" ]; then
+          FAILED_STEP="order creation"
+        elif [ "$PAYMENT_OK" != "true" ]; then
+          FAILED_STEP="payment"
+          FAILED_PAYMENTS=$((FAILED_PAYMENTS + 1))
+        elif [ "$INVENTORY_OK" != "true" ]; then
+          FAILED_STEP="stock check"
+        elif [ "$SEARCH_OK" != "true" ]; then
+          FAILED_STEP="product validation"
+        fi
+
+        if [ -n "$FAILED_STEP" ]; then
+          ROW="<tr><td>ORD-${ORDER_ID}</td><td>${TS}</td>"
+          ROW="${ROW}<td><span class='badge bad'>FAILED</span></td>"
+          ROW="${ROW}<td style='color:#ef4444'>Failed at ${FAILED_STEP}</td></tr>"
+        elif [ "$NOTIFY_OK" != "true" ]; then
+          SUCCESSFUL_ORDERS=$((SUCCESSFUL_ORDERS + 1))
+          FAILED_NOTIFICATIONS=$((FAILED_NOTIFICATIONS + 1))
+          ROW="<tr><td>ORD-${ORDER_ID}</td><td>${TS}</td>"
+          ROW="${ROW}<td><span class='badge ok'>COMPLETED</span></td>"
+          ROW="${ROW}<td style='color:#f59e0b'>Customer not notified</td></tr>"
+        else
+          SUCCESSFUL_ORDERS=$((SUCCESSFUL_ORDERS + 1))
+          ROW="<tr><td>ORD-${ORDER_ID}</td><td>${TS}</td>"
+          ROW="${ROW}<td><span class='badge ok'>COMPLETED</span></td>"
+          ROW="${ROW}<td style='color:#22c55e'>Confirmation sent</td></tr>"
+        fi
+
+        ORDERS_LIST="${ROW}${ORDERS_LIST}"
+      done
+
+      # Calculate rates from THIS cycle only
+      if [ "$TOTAL_ORDERS" -gt 0 ]; then
+        SUCCESS_RATE=$((SUCCESSFUL_ORDERS * 100 / TOTAL_ORDERS))
+      else
+        SUCCESS_RATE=0
+      fi
+      if [ "$SUCCESSFUL_ORDERS" -gt 0 ]; then
+        NOTIFY_RATE=$(( (SUCCESSFUL_ORDERS - FAILED_NOTIFICATIONS) * 100 / SUCCESSFUL_ORDERS ))
+        if [ "$NOTIFY_RATE" -lt 0 ]; then NOTIFY_RATE=0; fi
+      else
+        NOTIFY_RATE=0
+      fi
+
+      # Status
+      if [ "$SUCCESS_RATE" -eq 100 ] && [ "$NOTIFY_RATE" -eq 100 ] && [ "$RECO_OK" = "true" ] && [ "$ANALYTICS_OK" = "true" ]; then
+        SC="#22c55e"; ST="All systems nominal"
+      elif [ "$SUCCESS_RATE" -eq 100 ]; then
+        SC="#f59e0b"; ST="Orders processing - review alerts below"
+      elif [ "$SUCCESS_RATE" -gt 0 ]; then
+        SC="#f59e0b"; ST="Degraded - order failures detected"
+      else
+        SC="#ef4444"; ST="Critical - no orders processing"
+      fi
+
+      # Subsystem badges
+      if [ "$RECO_OK" = "true" ]; then
+        RECO_BADGE="<span class='badge ok'>Active</span>"
+      else
+        RECO_BADGE="<span class='badge bad'>Unavailable</span>"
+      fi
+      if [ "$ANALYTICS_OK" = "true" ]; then
+        ANALYTICS_BADGE="<span class='badge ok'>Collecting</span>"
+      else
+        ANALYTICS_BADGE="<span class='badge bad'>Offline</span>"
+      fi
+
+      NOW=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+      cat > "$HTML_PATH" << HTMLEOF
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>ShopFlow Admin</title>
+      <meta http-equiv="refresh" content="10">
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:32px}
+        .container{max-width:900px;margin:0 auto}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+        .header h1{font-size:22px;font-weight:500}
+        .header .status{font-size:13px;padding:6px 14px;border-radius:20px}
+        .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+        .card{background:#1e293b;border-radius:10px;padding:18px}
+        .card .label{font-size:11px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:6px}
+        .card .value{font-size:26px;font-weight:600}
+        .card .sub{font-size:12px;color:#64748b;margin-top:4px}
+        .section{background:#1e293b;border-radius:10px;padding:18px;margin-bottom:16px}
+        .section h2{font-size:13px;font-weight:500;margin-bottom:14px;color:#94a3b8}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        th{text-align:left;padding:8px 12px;color:#64748b;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155}
+        td{padding:8px 12px;border-bottom:1px solid #1e293b}
+        .badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+        .badge.ok{background:#22c55e22;color:#22c55e}
+        .badge.bad{background:#ef444422;color:#ef4444}
+        .badge.warn{background:#f59e0b22;color:#f59e0b}
+        .subsystems{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px}
+        .subsys{background:#1e293b;border-radius:10px;padding:16px;display:flex;justify-content:space-between;align-items:center}
+        .subsys .name{font-size:13px;color:#94a3b8}
+        .ts{color:#475569;font-size:11px;margin-top:16px;text-align:right}
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>ShopFlow Admin</h1>
+          <span class="status" style="background:${SC}22;color:${SC};border:1px solid ${SC}">${ST}</span>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="label">Order Success Rate</div>
+            <div class="value" style="color:$([ "$SUCCESS_RATE" -eq 100 ] && echo '#22c55e' || echo '#ef4444')">${SUCCESS_RATE}%</div>
+            <div class="sub">${SUCCESSFUL_ORDERS}/${TOTAL_ORDERS} completed</div>
+          </div>
+          <div class="card">
+            <div class="label">Notification Delivery</div>
+            <div class="value" style="color:$([ "$NOTIFY_RATE" -eq 100 ] && [ "$SUCCESSFUL_ORDERS" -gt 0 ] && echo '#22c55e' || echo '#f59e0b')">${NOTIFY_RATE}%</div>
+            <div class="sub">${FAILED_NOTIFICATIONS} undelivered</div>
+          </div>
+          <div class="card">
+            <div class="label">Failed Payments</div>
+            <div class="value" style="color:$([ "$FAILED_PAYMENTS" -eq 0 ] && echo '#22c55e' || echo '#ef4444')">${FAILED_PAYMENTS}</div>
+            <div class="sub">since deploy</div>
+          </div>
+        </div>
+
+        <div class="subsystems">
+          <div class="subsys">
+            <span class="name">Recommendations Engine</span>
+            ${RECO_BADGE}
+          </div>
+          <div class="subsys">
+            <span class="name">Analytics Pipeline</span>
+            ${ANALYTICS_BADGE}
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Recent Orders</h2>
+          <table>
+            <tr><th>Order ID</th><th>Time</th><th>Status</th><th>Details</th></tr>
+            ${ORDERS_LIST}
+          </table>
+        </div>
+
+        <p class="ts">Last updated: ${NOW} &mdash; refreshes every 10s</p>
+      </div>
+    </body>
+    </html>
+    HTMLEOF
+
+      sleep 10
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: riddle-1
+  labels:
+    app: api-gateway
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tier: frontend
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "192Mi"
+            limits:
+              cpu: "500m"
+              memory: "384Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+            - name: html
+              mountPath: /usr/share/nginx/html
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+        - name: healthcheck
+          image: busybox:1.36
+          command: ["sh", "/scripts/healthcheck.sh"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /scripts/healthcheck.sh
+              subPath: healthcheck.sh
+            - name: html
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: config
+          configMap:
+            name: api-gateway-config
+        - name: html
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: riddle-1
+spec:
+  type: NodePort
+  selector:
+    app: api-gateway
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30001

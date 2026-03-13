@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: riddle-1
+  annotations:
+    description: "Scheduled database backup - runs nightly"
+    owner: "platform-team"
+spec:
+  schedule: "0 2 * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: busybox:1.36
+              command: ["sh", "-c", "echo 'Running backup...' && sleep 5 && echo 'Backup complete'"]
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "128Mi"
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legacy-config
+  namespace: riddle-1
+  annotations:
+    status: "deprecated"
+    note: "TODO: migrate to inventory-config - do not delete until migration verified"
+data:
+  OLD_DB_HOST: "db-primary.legacy.svc.cluster.local"
+  OLD_DB_PORT: "5432"
+  MIGRATION_STATUS: "in-progress"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-svc
+  namespace: riddle-1
+  annotations:
+    status: "pending-deployment"
+    note: "Monitoring agent deployment planned for next sprint"
+spec:
+  selector:
+    app: monitoring-agent
+  ports:
+    - port: 9090
+      targetPort: 9090

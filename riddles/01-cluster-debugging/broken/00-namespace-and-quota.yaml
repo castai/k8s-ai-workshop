@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: riddle-1
+  labels:
+    workshop: bengaluru
+    riddle: cluster-debugging
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: namespace-quota
+  namespace: riddle-1
+spec:
+  hard:
+    requests.cpu: "2100m"
+    requests.memory: "1400Mi"
+    limits.cpu: "4000m"
+    limits.memory: "3000Mi"
+    pods: "14"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: riddle-1
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "256Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container

@@ -1,0 +1,44 @@
+---
+# BROKEN: Memory limit too low - workload needs ~120Mi but limit is 100Mi
+# Pattern:
+#   - Phase 1: runs at 60Mi for 60s (normal)
+#   - Phase 2: ramps to 120Mi for 30s (transition)
+#   - Phase 3: steady state at 120Mi → OOMKilled
+# After WOOP adjusts resources to 120Mi+, workload becomes stable
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stress-app
+  namespace: riddle-3
+  labels:
+    app: stress-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stress-app
+  template:
+    metadata:
+      labels:
+        app: stress-app
+    spec:
+      containers:
+      - name: stress
+        image: polinux/stress-ng
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting data processing workload..."
+          echo "Phase 1: Initial processing (60Mi for 60s)"
+          stress-ng --vm 1 --vm-bytes 60M --vm-hang 0 --timeout 60s
+          echo "Phase 2: Ramping up to steady state (120Mi for 30s)"
+          stress-ng --vm 1 --vm-bytes 120M --vm-hang 1 --timeout 30s
+          echo "Phase 3: Steady state processing (120Mi ongoing)"
+          stress-ng --vm 1 --vm-bytes 120M --vm-hang 1 --timeout 0
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 100Mi  # Too low! Workload needs ~120Mi for steady state

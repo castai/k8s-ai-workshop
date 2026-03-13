@@ -1,0 +1,93 @@
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: progress-reconciler
+  namespace: progress-reconciler
+  labels:
+    app: progress-reconciler
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Avoid duplicate reports from multiple instances
+  selector:
+    matchLabels:
+      app: progress-reconciler
+  template:
+    metadata:
+      labels:
+        app: progress-reconciler
+    spec:
+      serviceAccountName: progress-reconciler
+      containers:
+      - name: reconciler
+        image: ghcr.io/narunas-k/progress-reconciler:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CASTAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: castai-credentials
+              key: api-key
+              optional: true  # Don't fail if secret doesn't exist
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/reconciler
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: progress-reconciler-config
+          optional: true  # Allow startup without ConfigMap
+      restartPolicy: Always
+
+---
+# Service (for debugging endpoints)
+apiVersion: v1
+kind: Service
+metadata:
+  name: progress-reconciler
+  namespace: progress-reconciler
+  labels:
+    app: progress-reconciler
+spec:
+  type: ClusterIP
+  selector:
+    app: progress-reconciler
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

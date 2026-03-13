@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: riddle-1
+  labels:
+    app: notification-service
+    tier: messaging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        tier: messaging
+    spec:
+      containers:
+        - name: notification
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c"]
+          args:
+            - |
+              cat > /etc/nginx/conf.d/default.conf << 'CONF'
+              server {
+                  listen 8080;
+                  location / { return 200 'notification-service: OK\n'; }
+                  location /health { return 200 'healthy\n'; }
+              }
+              CONF
+              nginx -g 'daemon off;'
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: riddle-1
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8080
+      targetPort: 9090

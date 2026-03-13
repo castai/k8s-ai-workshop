@@ -1,0 +1,87 @@
+# kind cluster configuration for Kubernetes Workshop
+# Creates a multi-node cluster with 1 control-plane and 3 worker nodes
+# Suitable for demonstrating real-world Kubernetes riddles
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: workshop-cluster
+
+# Configure cluster networking
+networking:
+  # Disable default CNI to allow custom installation if needed
+  disableDefaultCNI: false
+  # Pod subnet
+  podSubnet: "10.244.0.0/16"
+  # Service subnet
+  serviceSubnet: "10.96.0.0/12"
+
+# Define cluster nodes
+nodes:
+  # Control plane node
+  - role: control-plane
+    image: kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
+    # Port mappings to access services from host machine
+    extraPortMappings:
+      # Frontend UI
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP
+      # Prometheus
+      - containerPort: 30090
+        hostPort: 30090
+        protocol: TCP
+      # Grafana
+      - containerPort: 30091
+        hostPort: 30091
+        protocol: TCP
+      # Mission Control API
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+      # Additional ports for riddles
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+      - containerPort: 30002
+        hostPort: 30002
+        protocol: TCP
+      - containerPort: 30003
+        hostPort: 30003
+        protocol: TCP
+    # Labels for node selection
+    labels:
+      workshop-role: control-plane
+    # Enable ingress for HTTP services (optional)
+    kubeadmConfigPatches:
+    - |
+      kind: InitConfiguration
+      nodeRegistration:
+        kubeletExtraArgs:
+          node-labels: "ingress-ready=true"
+
+  # Worker node 1
+  - role: worker
+    image: kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
+    labels:
+      workshop-role: worker
+      worker-id: "1"
+
+  # Worker node 2
+  - role: worker
+    image: kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
+    labels:
+      workshop-role: worker
+      worker-id: "2"
+
+  # Worker node 3
+  - role: worker
+    image: kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
+    labels:
+      workshop-role: worker
+      worker-id: "3"
+
+# Container runtime configuration
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
+    endpoint = ["http://kind-registry:5000"]

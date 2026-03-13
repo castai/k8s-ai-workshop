@@ -1,0 +1,256 @@
+# Prometheus Stack Configuration for Kubernetes Workshop
+# Optimized for local kind cluster with resource constraints
+
+# Global configuration
+fullnameOverride: "prometheus"
+
+# Configure Prometheus
+prometheus:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 30090
+    port: 9090
+
+  prometheusSpec:
+    # Resource limits for workshop (laptop-friendly)
+    resources:
+      requests:
+        memory: 400Mi
+        cpu: 200m
+      limits:
+        memory: 800Mi
+        cpu: 500m
+
+    # Retention settings (6 hours sufficient for workshop)
+    retention: 6h
+    retentionSize: "5GB"
+
+    # Storage configuration
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Service discovery configuration
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    # Scrape interval
+    evaluationInterval: 30s
+    scrapeInterval: 30s
+
+    # Additional scrape configs for workshop services
+    additionalScrapeConfigs: []
+
+    # Enable features
+    enableAdminAPI: true
+    enableFeatures: []
+
+    # Persistent volume configuration
+    # Disabled for workshop to save resources
+    # storageSpec: {}
+
+# Configure Grafana
+grafana:
+  enabled: true
+
+  # Admin credentials (workshop only - change in production!)
+  adminPassword: "admin"
+  adminUser: "admin"
+
+  # Service configuration
+  service:
+    type: NodePort
+    nodePort: 30091
+    port: 80
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+  # Persistence (disabled for workshop)
+  persistence:
+    enabled: false
+
+  # Grafana configuration
+  grafana.ini:
+    analytics:
+      check_for_updates: false
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+    server:
+      root_url: "http://localhost:30091"
+
+  # Default dashboards
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: "browser"
+
+  # Sidecar for loading dashboards from ConfigMaps
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      folder: /tmp/dashboards
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      label: grafana_datasource
+      labelValue: "1"
+
+# Configure Alertmanager (disabled for workshop)
+alertmanager:
+  enabled: false
+
+# Configure Prometheus Node Exporter
+prometheus-node-exporter:
+  enabled: true
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 32Mi
+      cpu: 50m
+    limits:
+      memory: 64Mi
+      cpu: 100m
+
+  # Host network access for accurate metrics
+  hostNetwork: true
+  hostPID: true
+  hostRootFsMount:
+    enabled: true
+
+# Configure kube-state-metrics
+kube-state-metrics:
+  enabled: true
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+  # Collectors configuration
+  collectors:
+    - certificatesigningrequests
+    - configmaps
+    - cronjobs
+    - daemonsets
+    - deployments
+    - endpoints
+    - horizontalpodautoscalers
+    - ingresses
+    - jobs
+    - limitranges
+    - mutatingwebhookconfigurations
+    - namespaces
+    - networkpolicies
+    - nodes
+    - persistentvolumeclaims
+    - persistentvolumes
+    - poddisruptionbudgets
+    - pods
+    - replicasets
+    - replicationcontrollers
+    - resourcequotas
+    - secrets
+    - services
+    - statefulsets
+    - storageclasses
+    - validatingwebhookconfigurations
+    - volumeattachments
+
+# Configure Prometheus Operator
+prometheusOperator:
+  enabled: true
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+  # Admission webhooks (optional for workshop)
+  admissionWebhooks:
+    enabled: true
+    patch:
+      enabled: true
+
+# Kubernetes API server monitoring
+kubeApiServer:
+  enabled: true
+
+# kubelet monitoring
+kubelet:
+  enabled: true
+
+  # Namespace for kubelet metrics
+  namespace: kube-system
+
+# CoreDNS monitoring
+coreDns:
+  enabled: true
+
+# kube-controller-manager monitoring
+kubeControllerManager:
+  enabled: true
+
+# etcd monitoring (disabled in kind by default)
+kubeEtcd:
+  enabled: false
+
+# kube-scheduler monitoring
+kubeScheduler:
+  enabled: true
+
+# kube-proxy monitoring
+kubeProxy:
+  enabled: true
+
+# Default ServiceMonitors
+defaultRules:
+  create: true
+  rules:
+    alertmanager: false
+    etcd: false
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserver: true
+    kubeApiserverAvailability: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true

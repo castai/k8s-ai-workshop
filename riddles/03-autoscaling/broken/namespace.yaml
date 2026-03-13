@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: riddle-3
+  labels:
+    riddle: workload-autoscaling
+    workshop: kubernetes-ai-ops

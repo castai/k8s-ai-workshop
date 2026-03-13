@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-sa
+  namespace: riddle-1
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: inventory-configmap-reader
+  namespace: riddle-1
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: inventory-configmap-binding
+  namespace: riddle-1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: inventory-configmap-reader
+subjects:
+  - kind: ServiceAccount
+    name: inventory-service-sa
+    namespace: riddle-1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-config
+  namespace: riddle-1
+data:
+  DATABASE_HOST: "cache-service.riddle-1.svc.cluster.local"
+  DATABASE_PORT: "6379"
+  LOG_LEVEL: "info"
+  MAX_RETRIES: "3"
+  INVENTORY_MODE: "realtime"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: riddle-1
+  labels:
+    app: inventory-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+        tier: backend
+    spec:
+      serviceAccountName: inventory-sa
+      containers:
+        - name: inventory
+          image: bitnami/kubectl:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Starting inventory-service..."
+              echo "Attempting to load configuration from ConfigMap..."
+
+              # Try to read the configmap via the Kubernetes API
+              CONFIG=$(kubectl get configmap inventory-config -n riddle-1 -o jsonpath='{.data}' 2>&1)
+              EXIT_CODE=$?
+
+              if [ $EXIT_CODE -ne 0 ]; then
+                echo "ERROR: Failed to read configmap inventory-config: $CONFIG"
+                echo "The inventory service cannot start without its configuration."
+                echo "Please ensure the configmap 'inventory-config' exists and is accessible."
+                exit 1
+              fi
+
+              echo "Configuration loaded successfully"
+              echo "inventory-service is running"
+
+              # Serve HTTP
+              while true; do
+                echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhealthy" | nc -l -p 8080 -w 1 || true
+              done
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: riddle-1
+spec:
+  selector:
+    app: inventory-service
+  ports:
+    - port: 8080
+      targetPort: 8080

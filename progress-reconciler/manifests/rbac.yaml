@@ -1,0 +1,119 @@
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: progress-reconciler
+  namespace: progress-reconciler
+  labels:
+    app: progress-reconciler
+
+---
+# ClusterRole with read-only permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: progress-reconciler
+  labels:
+    app: progress-reconciler
+rules:
+# Read namespaces (to detect riddles)
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch"]
+
+# Read kube-system namespace for cluster UID
+- apiGroups: [""]
+  resources: ["namespaces"]
+  resourceNames: ["kube-system"]
+  verbs: ["get"]
+
+# Read pods (for all verification checks)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+# Read pod status
+- apiGroups: [""]
+  resources: ["pods/status"]
+  verbs: ["get", "list"]
+
+# Exec into pods (for service reachability checks)
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+
+# Read services and endpoints
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+
+# Read events (for OOMKill detection)
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+# Read deployments (for resource checks)
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+
+# Read HPA (for autoscaling checks)
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch"]
+
+# Read resource quotas (for optimization checks)
+- apiGroups: [""]
+  resources: ["resourcequotas"]
+  verbs: ["get", "list", "watch"]
+
+# Read ConfigMaps (for configuration)
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+
+# Read nodes (for pod distribution checks)
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+
+# Read metrics (optional, for advanced checks)
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding (cluster-wide access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: progress-reconciler
+  labels:
+    app: progress-reconciler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: progress-reconciler
+subjects:
+- kind: ServiceAccount
+  name: progress-reconciler
+  namespace: progress-reconciler
+
+---
+# RoleBinding for own namespace (ConfigMap access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: progress-reconciler
+  namespace: progress-reconciler
+  labels:
+    app: progress-reconciler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: progress-reconciler
+subjects:
+- kind: ServiceAccount
+  name: progress-reconciler
+  namespace: progress-reconciler

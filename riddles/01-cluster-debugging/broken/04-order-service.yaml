@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: riddle-1
+  labels:
+    app: order-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        tier: backend
+    spec:
+      initContainers:
+        # Init container 1: Wait for payment-processor to be available
+        - name: wait-for-payment
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Waiting for payment-processor-svc to become available..."
+              until wget -q -O- -T 3 http://payment-processor-svc.riddle-1.svc.cluster.local:8080/health 2>/dev/null | grep -q healthy; do
+                echo "$(date): payment-processor-svc not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "payment-processor-svc is available!"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+        # Init container 2: Run database migration check
+        - name: run-migrations
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Running migration checks..."
+              sleep 2
+              echo "Migrations complete."
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+      containers:
+        - name: order-service
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c"]
+          args:
+            - |
+              cat > /etc/nginx/conf.d/default.conf << 'CONF'
+              server {
+                  listen 8080;
+                  location / { return 200 'order-service: OK\n'; }
+                  location /health { return 200 'healthy\n'; }
+              }
+              CONF
+              nginx -g 'daemon off;'
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: riddle-1
+spec:
+  selector:
+    app: order-service
+  ports:
+    - port: 8080
+      targetPort: 8080

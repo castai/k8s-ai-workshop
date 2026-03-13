@@ -1,0 +1,127 @@
+# =============================================================================
+# Riddle 2: Temporary jobs that force autoscaler to add extra nodes
+#
+# These jobs run for ~60 seconds then complete, leaving the cluster with
+# excess nodes that the rebalancer can consolidate.
+#
+# Total temporary: ~23 CPU / ~22Gi across 8 pods
+# Per-job podAntiAffinity prevents same-job pods from co-locating,
+# and 3 CPU requests prevent too much cross-job co-location on small nodes,
+# forcing the autoscaler to provision 4+ extra nodes.
+# =============================================================================
+
+# --- Data Migration Job: 3 pods x 3 CPU / 3Gi, 60s ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration
+  namespace: riddle-2
+  labels:
+    app: data-migration
+    type: temporary
+spec:
+  parallelism: 3
+  completions: 3
+  template:
+    metadata:
+      labels:
+        app: data-migration
+        type: temporary
+    spec:
+      restartPolicy: Never
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: data-migration
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: migration
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Running data migration...'; sleep 60; echo 'Migration complete'"]
+          resources:
+            requests:
+              cpu: "3"
+              memory: "3Gi"
+            limits:
+              cpu: "3"
+              memory: "3Gi"
+
+---
+# --- Index Rebuild Job: 3 pods x 3 CPU / 3Gi, 60s ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: index-rebuild
+  namespace: riddle-2
+  labels:
+    app: index-rebuild
+    type: temporary
+spec:
+  parallelism: 3
+  completions: 3
+  template:
+    metadata:
+      labels:
+        app: index-rebuild
+        type: temporary
+    spec:
+      restartPolicy: Never
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: index-rebuild
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: rebuild
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Rebuilding indexes...'; sleep 60; echo 'Index rebuild complete'"]
+          resources:
+            requests:
+              cpu: "3"
+              memory: "3Gi"
+            limits:
+              cpu: "3"
+              memory: "3Gi"
+
+---
+# --- Cache Warmup Job: 2 pods x 2.5 CPU / 2Gi, 60s ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-warmup
+  namespace: riddle-2
+  labels:
+    app: cache-warmup
+    type: temporary
+spec:
+  parallelism: 2
+  completions: 2
+  template:
+    metadata:
+      labels:
+        app: cache-warmup
+        type: temporary
+    spec:
+      restartPolicy: Never
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: cache-warmup
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: warmup
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Warming up caches...'; sleep 60; echo 'Cache warmup complete'"]
+          resources:
+            requests:
+              cpu: "2500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2500m"
+              memory: "2Gi"
