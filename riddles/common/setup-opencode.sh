@@ -155,7 +155,7 @@ cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
       "*": "allow"
     }
   },
-  "model": "ai-enabler/glm-5-fp8",
+  "model": "ai-enabler/minimax-m2.5",
   "provider": {
     "anthropic-castai": {
       "npm": "@ai-sdk/openai-compatible",
@@ -179,24 +179,15 @@ cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
         "apiKey": "$CASTAI_AI_ENABLER_KEY"
       },
       "models": {
-        "qwen3-coder-next-fp8": {
-          "name": "qwen3-coder-next-fp8",
-          "tool_call": true,
-          "reasoning": false,
-          "limit": {
-            "context": 200000,
-            "output": 45760
-          }
-        },
-        "glm-5-fp8": {
-          "name": "glm-5-fp8",
-          "tool_call": true,
-          "reasoning": true,
-          "limit": {
-            "context": 150000,
-            "output": 50000
-          }
-        }
+       "minimax-m2.5": {
+         "name": "minimax-m2.5",
+         "tool_call": true,
+         "reasoning": true,
+         "limit": {
+           "context": 150000,
+           "output": 45000
+         }
+       }
       }
     }
   },
