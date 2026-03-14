@@ -214,7 +214,7 @@ fi
 
 echo -e "${GREEN}OpenCode configured successfully!${NC}"
 echo ""
-echo "  Model:    glm-5-fp8 (CAST AI AI Enabler)"
+echo "  Model:    minimax-m2.5 (CAST AI AI Enabler)"
 if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_MCP_API_KEY" ]; then
     echo "  MCP:      kubernetes + castai"
 else
