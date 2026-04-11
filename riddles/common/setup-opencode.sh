@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Setup OpenCode with CAST AI AI Enabler (Minimax model) + MCP servers
-# Can be run standalone or called from riddle setup scripts
+# Configure OpenCode MCP servers and skills
+# Can be run standalone or called from kimchi-cli-bootstrap.sh
 
 set -e
 
@@ -44,11 +44,8 @@ echo "  OpenCode + CAST AI Setup"
 echo "=================================================="
 echo ""
 
-# Static AI Enabler key (for Minimax model access)
-CASTAI_AI_ENABLER_KEY="f3ea65695a62661a973661925d072797dc1cc3a15f8168211c122a9e1bf664de"
-
-CASTAI_MCP_API_KEY=""
-if [ "$WITH_CASTAI" = true ]; then
+CASTAI_API_KEY="${CASTAI_API_KEY:-}"
+if [ "$WITH_CASTAI" = true ] && [ -z "$CASTAI_API_KEY" ]; then
     # Prompt for CAST AI API key (for cluster management MCP)
     echo -e "${YELLOW}CAST AI API Key${NC}"
     echo "This key is used for the CAST AI MCP server (cluster management)."
@@ -72,42 +69,17 @@ except:
 
     if [ -n "$EXISTING_KEY" ]; then
         echo -e "Current key: ${BLUE}${EXISTING_KEY:0:8}...${NC}"
-        read -r -p "Press ENTER to keep it, or paste a new key: " CASTAI_MCP_API_KEY
-        if [ -z "$CASTAI_MCP_API_KEY" ]; then
-            CASTAI_MCP_API_KEY="$EXISTING_KEY"
+        read -r -p "Press ENTER to keep it, or paste a new key: " CASTAI_API_KEY
+        if [ -z "$CASTAI_API_KEY" ]; then
+            CASTAI_API_KEY="$EXISTING_KEY"
         fi
     else
-        read -r -p "Enter your CAST AI API key: " CASTAI_MCP_API_KEY
-        if [ -z "$CASTAI_MCP_API_KEY" ]; then
+        read -r -p "Enter your CAST AI API key: " CASTAI_API_KEY
+        if [ -z "$CASTAI_API_KEY" ]; then
             echo -e "${YELLOW}No key entered. CAST AI MCP will not work without it.${NC}"
             echo -e "${YELLOW}You can re-run this script later to add it.${NC}"
-            CASTAI_MCP_API_KEY="REPLACE_WITH_YOUR_CASTAI_API_KEY"
+            CASTAI_API_KEY="REPLACE_WITH_YOUR_CASTAI_API_KEY"
         fi
-    fi
-    echo ""
-fi
-
-# Install npm if missing on Ubuntu
-if ! command -v npm &>/dev/null; then
-    if [ -f /etc/os-release ] && grep -qi ubuntu /etc/os-release; then
-        echo -e "${YELLOW}npm not found. Installing nodejs and npm...${NC}"
-        sudo apt install nodejs npm -y
-        echo ""
-    fi
-fi
-
-# Install OpenCode if needed
-if ! command -v opencode &>/dev/null; then
-    echo -e "${YELLOW}OpenCode not found. Installing...${NC}"
-    if command -v brew &>/dev/null; then
-        brew install opencode
-    elif command -v npm &>/dev/null; then
-        npm install -g opencode-ai
-    elif command -v curl &>/dev/null; then
-        curl -fsSL https://opencode.ai/install | bash
-    else
-        echo -e "${RED}Cannot install OpenCode automatically. Please install from https://opencode.ai${NC}"
-        exit 1
     fi
     echo ""
 fi
@@ -135,13 +107,13 @@ fi
 
 # Build castai MCP block conditionally
 CASTAI_MCP_BLOCK=""
-if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_MCP_API_KEY" ]; then
+if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_API_KEY" ]; then
     CASTAI_MCP_BLOCK=',
     "castai": {
       "type": "local",
       "command": ["npx", "-y", "castai-mcp-server@latest"],
       "environment": {
-        "CASTAI_API_KEY": "'"$CASTAI_MCP_API_KEY"'"
+        "CASTAI_API_KEY": "'"$CASTAI_API_KEY"'"
       }
     }'
 fi
@@ -153,42 +125,6 @@ cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
   "permission": {
     "*": {
       "*": "allow"
-    }
-  },
-  "model": "ai-enabler/minimax-m2.5",
-  "provider": {
-    "anthropic-castai": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Anthropic through AI Enabler",
-      "options": {
-        "baseURL": "https://llm.cast.ai/openai/v1",
-        "apiKey": "$CASTAI_AI_ENABLER_KEY"
-      },
-      "models": {
-        "claude-sonnet-4-6": {
-          "name": "claude-sonnet-4-6",
-          "tool_call": true
-        }
-      }
-    },
-    "ai-enabler": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "AI Enabler by Cast AI",
-      "options": {
-        "baseURL": "https://llm.cast.ai/openai/v1",
-        "apiKey": "$CASTAI_AI_ENABLER_KEY"
-      },
-      "models": {
-       "minimax-m2.5": {
-         "name": "minimax-m2.5",
-         "tool_call": true,
-         "reasoning": true,
-         "limit": {
-           "context": 150000,
-           "output": 45000
-         }
-       }
-      }
     }
   },
   "mcp": {
@@ -214,8 +150,7 @@ fi
 
 echo -e "${GREEN}OpenCode configured successfully!${NC}"
 echo ""
-echo "  Model:    minimax-m2.5 (CAST AI AI Enabler)"
-if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_MCP_API_KEY" ]; then
+if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_API_KEY" ]; then
     echo "  MCP:      kubernetes + castai"
 else
     echo "  MCP:      kubernetes"
