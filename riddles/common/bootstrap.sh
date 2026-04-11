@@ -40,14 +40,14 @@ echo ""
 
 # --- Validate API key ------------------------------------------------------
 if [ -z "$CASTAI_API_KEY" ]; then
-  printf "  ${RED}[✗]${NC} CASTAI_API_KEY is not set\n"
+  printf "  ${RED}[✗]${NC} KIMCHI_API_KEY is not set\n"
   echo ""
   echo -e "      Usage: ${BLUE}KIMCHI_API_KEY=<your-key> $0${NC}"
   echo -e "             ${DIM}(CASTAI_API_KEY also accepted)${NC}"
   echo ""
   exit 1
 fi
-printf "  ${GREEN}[✓]${NC} CASTAI_API_KEY provided\n"
+printf "  ${GREEN}[✓]${NC} API key provided\n"
 
 # --- Stage 1: Install kimchi CLI -------------------------------------------
 step "Install kimchi CLI (${KIMCHI_VERSION})" bash -c '
