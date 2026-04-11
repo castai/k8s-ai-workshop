@@ -23,7 +23,7 @@ spec:
       serviceAccountName: progress-reconciler
       containers:
       - name: reconciler
-        image: ghcr.io/narunas-k/progress-reconciler:latest
+        image: ghcr.io/castai/k8s-ai-workshop/progress-reconciler:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
