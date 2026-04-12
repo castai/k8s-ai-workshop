@@ -7,11 +7,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# shellcheck source=../common/lib.sh
+source "$SCRIPT_DIR/../common/lib.sh"
 
 echo "=================================================="
 echo "  Riddle 2: Autoscaler & Rebalancing - Setup"
@@ -106,23 +103,29 @@ if [ -n "$CASTAI_API_KEY" ] && [ "$CASTAI_API_KEY" != "REPLACE_WITH_YOUR_CASTAI_
 
         echo -e "${GREEN}✓ Updated CAST AI credentials in progress-reconciler namespace${NC}"
 
-        # Patch deployment to add CASTAI_API_KEY environment variable
-        kubectl patch deployment progress-reconciler -n progress-reconciler --type=json -p='[
-          {
-            "op": "add",
-            "path": "/spec/template/spec/containers/0/env/-",
-            "value": {
-              "name": "CASTAI_API_KEY",
-              "valueFrom": {
-                "secretKeyRef": {
-                  "name": "castai-credentials",
-                  "key": "api-key",
-                  "optional": true
+        # Patch deployment to add CASTAI_API_KEY environment variable (skip if already set)
+        EXISTING_ENV=$(kubectl get deployment progress-reconciler -n progress-reconciler \
+            -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CASTAI_API_KEY")].name}' 2>/dev/null)
+        if [ -z "$EXISTING_ENV" ]; then
+            kubectl patch deployment progress-reconciler -n progress-reconciler --type=json -p='[
+              {
+                "op": "add",
+                "path": "/spec/template/spec/containers/0/env/-",
+                "value": {
+                  "name": "CASTAI_API_KEY",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "name": "castai-credentials",
+                      "key": "api-key",
+                      "optional": true
+                    }
+                  }
                 }
               }
-            }
-          }
-        ]' 2>/dev/null || echo -e "${YELLOW}  (deployment may already have the env var)${NC}"
+            ]' 2>/dev/null || echo -e "${YELLOW}  (patch failed, env var may need manual setup)${NC}"
+        else
+            echo -e "${GREEN}✓ CASTAI_API_KEY env var already configured${NC}"
+        fi
 
         echo -e "${GREEN}✓ Configured deployment to use CAST AI credentials${NC}"
         echo -e "${GREEN}✓ Deployment will restart automatically with new configuration${NC}"

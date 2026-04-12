@@ -5,13 +5,10 @@
 
 set -e
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
 RIDDLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=../common/lib.sh
+source "$RIDDLE_DIR/../common/lib.sh"
 
 # External autoscaler is managing the cluster
 
@@ -41,10 +38,12 @@ fi
 echo ""
 
 # Clean up any existing deployments in riddle-3 namespace
-echo "Cleaning up any existing resources in riddle-3..."
-kubectl delete deployment --all -n riddle-3 --ignore-not-found=true 2>/dev/null || true
-kubectl delete pod --all -n riddle-3 --ignore-not-found=true 2>/dev/null || true
-sleep 5
+if kubectl get namespace riddle-3 &>/dev/null; then
+    echo "Cleaning up existing resources in riddle-3..."
+    kubectl delete deployment --all -n riddle-3 --ignore-not-found=true 2>/dev/null || true
+    kubectl delete pod --all -n riddle-3 --ignore-not-found=true 2>/dev/null || true
+    sleep 5
+fi
 echo ""
 
 # Create namespace and deploy broken workload

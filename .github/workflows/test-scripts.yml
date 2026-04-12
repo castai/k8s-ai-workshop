@@ -1,0 +1,35 @@
+name: Test riddle scripts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "riddles/**"
+      - "progress-reconciler/**"
+      - "tests/**"
+  pull_request:
+    paths:
+      - "riddles/**"
+      - "progress-reconciler/**"
+      - "tests/**"
+
+jobs:
+  test-riddle-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+
+      - name: Run tests
+        run: ./tests/test-riddle-scripts.sh --kind

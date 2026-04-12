@@ -4,10 +4,8 @@
 
 set -e
 
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-NC='\033[0m'
+# shellcheck source=lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # Install npm if missing on Ubuntu
 if ! command -v npm &>/dev/null; then

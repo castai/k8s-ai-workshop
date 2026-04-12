@@ -8,11 +8,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# shellcheck source=../common/lib.sh
+source "$SCRIPT_DIR/../common/lib.sh"
 
 # Parse flags
 SETUP_KIND=false
@@ -104,6 +101,11 @@ kubectl wait --for=condition=ready pod -l app=api-gateway -n riddle-1 --timeout=
 sleep 3
 
 # Start port-forwarding now that api-gateway is running
+# Kill any existing port-forward on 8080 to avoid PID leaks on re-run
+if lsof -ti:8080 &>/dev/null; then
+    kill $(lsof -ti:8080) 2>/dev/null || true
+    sleep 1
+fi
 echo -e "${BLUE}Starting port-forward to api-gateway on localhost:8080...${NC}"
 nohup kubectl port-forward svc/api-gateway -n riddle-1 --address 0.0.0.0 8080:80 &>/dev/null &
 PORT_FWD_PID=$!
