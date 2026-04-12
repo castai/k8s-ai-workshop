@@ -23,11 +23,6 @@ if ! kubectl get namespace riddle-3 &>/dev/null; then
     exit 1
 fi
 
-if ! kubectl get deployment stress-app -n riddle-3 &>/dev/null; then
-    echo -e "${RED}Deployment 'stress-app' not found in riddle-3${NC}"
-    exit 1
-fi
-
 # ── Run Go verifier ───────────────────────────────────────────────────
 
 RESULT=$(run_verifier 3 riddle-3)
@@ -72,17 +67,11 @@ NO_RECENT_OOM="${PASSED[2]}"
 MEM_REQ_OK="${PASSED[3]}"
 WOOP_APPLIED="${PASSED[4]}"
 
-# ── Gather display info from cluster ──────────────────────────────────
+# ── Read display metadata from verifier output ───────────────────────
 
-MEM_REQ="unknown"
-RUNNING_COUNT=0
-TOTAL_PODS=0
-POD_NAME=$(kubectl get pods -l app=stress-app -n riddle-3 --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-if [ -n "$POD_NAME" ]; then
-    MEM_REQ=$(kubectl get pod "$POD_NAME" -n riddle-3 -o jsonpath='{.spec.containers[0].resources.requests.memory}' 2>/dev/null || echo "unknown")
-fi
-TOTAL_PODS=$(kubectl get pods -l app=stress-app -n riddle-3 --no-headers 2>/dev/null | wc -l | tr -d ' ')
-RUNNING_COUNT=$(kubectl get pods -l app=stress-app -n riddle-3 --no-headers 2>/dev/null | grep -c 'Running' || true)
+MEM_REQ=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('metadata',{}).get('memory_request','unknown'))")
+RUNNING_COUNT=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('metadata',{}).get('running_pods','0'))")
+TOTAL_PODS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('metadata',{}).get('total_pods','0'))")
 
 # ── Calculate Score ───────────────────────────────────────────────────
 

@@ -10,10 +10,11 @@ type CheckResult struct {
 
 // VerifyResult holds the full output of a riddle verification run.
 type VerifyResult struct {
-	ChecksPassed int           `json:"checks_passed"`
-	TotalChecks  int           `json:"total_checks"`
-	Status       string        `json:"status"`
-	Checks       []CheckResult `json:"checks"`
+	ChecksPassed int               `json:"checks_passed"`
+	TotalChecks  int               `json:"total_checks"`
+	Status       string            `json:"status"`
+	Checks       []CheckResult     `json:"checks"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
 }
 
 // Verifier defines the interface for riddle verification

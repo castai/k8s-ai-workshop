@@ -2,6 +2,7 @@ package verifiers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +56,43 @@ func (v *Riddle3Verifier) Verify(ctx context.Context) VerifyResult {
 		TotalChecks:  len(checks),
 		Status:       DetermineStatus(passed, len(checks)),
 		Checks:       results,
+		Metadata:     v.collectMetadata(ctx),
 	}
+}
+
+// collectMetadata gathers display-only information for the CLI output.
+func (v *Riddle3Verifier) collectMetadata(ctx context.Context) map[string]string {
+	meta := map[string]string{}
+
+	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=stress-app",
+	})
+	if err != nil {
+		return meta
+	}
+
+	total := len(pods.Items)
+	running := 0
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			running++
+		}
+	}
+	meta["total_pods"] = fmt.Sprintf("%d", total)
+	meta["running_pods"] = fmt.Sprintf("%d", running)
+
+	// Memory request from first running pod
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodRunning && len(pod.Spec.Containers) > 0 {
+			memReq := pod.Spec.Containers[0].Resources.Requests.Memory()
+			if memReq != nil {
+				meta["memory_request"] = memReq.String()
+			}
+			break
+		}
+	}
+
+	return meta
 }
 
 // Check 1: No pods in OOMKilled state
