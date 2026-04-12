@@ -30,34 +30,37 @@ func NewRiddle2Verifier(clientset *kubernetes.Clientset, namespace string) *Ridd
 }
 
 // Verify runs all 5 checks for Riddle 2 (Autoscaler & Rebalancing)
-func (v *Riddle2Verifier) Verify(ctx context.Context) (checksPassed, totalChecks int, status string) {
-	checks := []func(context.Context) bool{
-		v.checkAllDeploymentsReady,
-		v.checkNoPendingPods,
-		v.checkNoErrorPods,
-		v.checkAllPodsFullyReady,
-		v.checkCASTAIRebalancingCompleted,
+func (v *Riddle2Verifier) Verify(ctx context.Context) VerifyResult {
+	type namedCheck struct {
+		name string
+		fn   func(context.Context) bool
 	}
 
-	totalChecks = len(checks)
-	checksPassed = 0
+	checks := []namedCheck{
+		{"All deployments ready", v.checkAllDeploymentsReady},
+		{"No pods pending", v.checkNoPendingPods},
+		{"No pods in error states", v.checkNoErrorPods},
+		{"All pods fully ready", v.checkAllPodsFullyReady},
+		{"CAST AI rebalancing completed", v.checkCASTAIRebalancingCompleted},
+	}
+
+	results := make([]CheckResult, 0, len(checks))
+	passed := 0
 
 	for _, check := range checks {
-		if check(ctx) {
-			checksPassed++
+		ok := check.fn(ctx)
+		if ok {
+			passed++
 		}
+		results = append(results, CheckResult{Name: check.name, Passed: ok})
 	}
 
-	// Determine status
-	if checksPassed == 0 {
-		status = "not_started"
-	} else if checksPassed < totalChecks {
-		status = "in_progress"
-	} else {
-		status = "completed"
+	return VerifyResult{
+		ChecksPassed: passed,
+		TotalChecks:  len(checks),
+		Status:       DetermineStatus(passed, len(checks)),
+		Checks:       results,
 	}
-
-	return checksPassed, totalChecks, status
 }
 
 // Check 1: All deployments have desired replicas ready

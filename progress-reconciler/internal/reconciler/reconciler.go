@@ -8,6 +8,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"progress-reconciler/internal/config"
 	"progress-reconciler/internal/reporter"
@@ -17,6 +18,7 @@ import (
 // Reconciler manages riddle verification and reporting
 type Reconciler struct {
 	clientset   *kubernetes.Clientset
+	restConfig  *rest.Config
 	config      *config.Config
 	reporter    *reporter.SupabaseReporter
 	rateLimiter *reporter.RateLimiter
@@ -28,11 +30,13 @@ type Reconciler struct {
 // NewReconciler creates a new reconciler
 func NewReconciler(
 	clientset *kubernetes.Clientset,
+	restCfg *rest.Config,
 	cfg *config.Config,
 	rep *reporter.SupabaseReporter,
 ) *Reconciler {
 	r := &Reconciler{
 		clientset:   clientset,
+		restConfig:  restCfg,
 		config:      cfg,
 		reporter:    rep,
 		rateLimiter: reporter.NewRateLimiter(cfg.ReportMinInterval),
@@ -54,7 +58,7 @@ func (r *Reconciler) initializeVerifiers() {
 		var verifier verifiers.Verifier
 		switch riddleConfig.RiddleID {
 		case "2eecc00a-79a6-4d8e-92a3-06440b5d08c2": // Riddle 1
-			verifier = verifiers.NewRiddle1Verifier(r.clientset, riddleConfig.Namespace)
+			verifier = verifiers.NewRiddle1Verifier(r.clientset, r.restConfig, riddleConfig.Namespace)
 		case "24e96064-68d7-4bf9-b222-af29fe2306be": // Riddle 2
 			verifier = verifiers.NewRiddle2Verifier(r.clientset, riddleConfig.Namespace)
 		case "7d7c5ea7-9b3d-4890-ac40-c79b8f30c778": // Riddle 3
@@ -139,11 +143,11 @@ func (r *Reconciler) reconcileRiddle(ctx context.Context, riddleConfig config.Ri
 		return
 	}
 
-	checksPassed, totalChecks, status := verifier.Verify(ctx)
+	result := verifier.Verify(ctx)
 
 	// Check if state changed
 	r.stateMutex.Lock()
-	stateChanged := state.LastStatus != status || state.ChecksPassed != checksPassed
+	stateChanged := state.LastStatus != result.Status || state.ChecksPassed != result.ChecksPassed
 	oldStatus := state.LastStatus
 	oldChecks := state.ChecksPassed
 	r.stateMutex.Unlock()
@@ -151,21 +155,21 @@ func (r *Reconciler) reconcileRiddle(ctx context.Context, riddleConfig config.Ri
 	// Report if state changed and rate limit allows
 	if stateChanged && r.rateLimiter.ShouldReport(riddleConfig.RiddleID) {
 		log.Printf("📊 State changed for %s: status %s→%s, checks %d/%d→%d/%d",
-			riddleConfig.RiddleID, oldStatus, status, oldChecks, totalChecks, checksPassed, totalChecks)
+			riddleConfig.RiddleID, oldStatus, result.Status, oldChecks, result.TotalChecks, result.ChecksPassed, result.TotalChecks)
 
 		r.reporter.QueueReport(reporter.ReportMessage{
 			RiddleID:     riddleConfig.RiddleID,
-			Status:       status,
-			ChecksPassed: checksPassed,
-			TotalChecks:  totalChecks,
+			Status:       result.Status,
+			ChecksPassed: result.ChecksPassed,
+			TotalChecks:  result.TotalChecks,
 		})
 
 		// Only update in-memory state after the report is queued,
 		// so rate-limited changes will be retried on the next cycle.
 		r.stateMutex.Lock()
-		state.LastStatus = status
-		state.ChecksPassed = checksPassed
-		state.TotalChecks = totalChecks
+		state.LastStatus = result.Status
+		state.ChecksPassed = result.ChecksPassed
+		state.TotalChecks = result.TotalChecks
 		state.LastReportTime = time.Now()
 		r.stateMutex.Unlock()
 	}

@@ -95,3 +95,49 @@ state_mark() {
 state_reset() {
   rm -f "$WORKSHOP_STATE_FILE"
 }
+
+# --- Verifier binary -------------------------------------------------------
+# Builds the Go verifier binary if missing or source is newer.
+# Sets VERIFIER_BIN to the path of the built binary.
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERIFIER_BIN="${_LIB_DIR}/../../progress-reconciler/reconciler"
+_RECONCILER_DIR="${_LIB_DIR}/../../progress-reconciler"
+
+ensure_verifier() {
+  if [ ! -x "$VERIFIER_BIN" ] || [ "$(find "$_RECONCILER_DIR" -name '*.go' -newer "$VERIFIER_BIN" 2>/dev/null | head -1)" ]; then
+    printf "  ${DIM}Building verifier...${NC}"
+    if ! (cd "$_RECONCILER_DIR" && go build -o reconciler ./cmd/reconciler) 2>/dev/null; then
+      printf "\r  ${RED}[✗]${NC} Failed to build verifier binary\n"
+      return 1
+    fi
+    printf "\r  ${GREEN}[✓]${NC} Verifier built            \n"
+  fi
+}
+
+# run_verifier <riddle-number> <namespace>
+# Runs the Go verifier and prints the raw JSON to stdout.
+# Exports CASTAI_API_KEY from OpenCode config if available (for riddle 2).
+run_verifier() {
+  local riddle="$1" ns="$2"
+  ensure_verifier || return 1
+
+  # Export API key from OpenCode config if not already set
+  if [ -z "${CASTAI_API_KEY:-}" ]; then
+    local opencode_cfg="$HOME/.config/opencode/opencode.json"
+    if [ -f "$opencode_cfg" ]; then
+      CASTAI_API_KEY=$(python3 -c "
+import json
+try:
+    with open('$opencode_cfg') as f:
+        config = json.load(f)
+    env = config.get('mcp', {}).get('castai', {}).get('environment', {})
+    print(env.get('CASTAI_API_KEY', ''))
+except:
+    pass
+" 2>/dev/null)
+      export CASTAI_API_KEY
+    fi
+  fi
+
+  "$VERIFIER_BIN" verify --riddle "$riddle" --namespace "$ns" --format json 2>/dev/null
+}

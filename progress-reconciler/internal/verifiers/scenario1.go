@@ -24,8 +24,7 @@ type Riddle1Verifier struct {
 }
 
 // NewRiddle1Verifier creates a new Riddle 1 verifier
-func NewRiddle1Verifier(clientset *kubernetes.Clientset, namespace string) *Riddle1Verifier {
-	config, _ := rest.InClusterConfig()
+func NewRiddle1Verifier(clientset *kubernetes.Clientset, config *rest.Config, namespace string) *Riddle1Verifier {
 	return &Riddle1Verifier{
 		clientset: clientset,
 		config:    config,
@@ -34,13 +33,13 @@ func NewRiddle1Verifier(clientset *kubernetes.Clientset, namespace string) *Ridd
 }
 
 // Verify runs all 10 checks for Riddle 1
-func (v *Riddle1Verifier) Verify(ctx context.Context) (checksPassed, totalChecks int, status string) {
-	type checkFunc struct {
+func (v *Riddle1Verifier) Verify(ctx context.Context) VerifyResult {
+	type namedCheck struct {
 		name string
 		fn   func(context.Context) bool
 	}
 
-	checks := []checkFunc{
+	checks := []namedCheck{
 		{"All deployments ready", v.checkAllDeploymentsReady},
 		{"No pods pending", v.checkNoPodsInPending},
 		{"No pods in error states", v.checkNoPodsInErrorStates},
@@ -53,28 +52,25 @@ func (v *Riddle1Verifier) Verify(ctx context.Context) (checksPassed, totalChecks
 		{"Dashboard reports nominal", v.checkDashboardReportsNominal},
 	}
 
-	totalChecks = len(checks)
-	checksPassed = 0
+	results := make([]CheckResult, 0, len(checks))
+	passed := 0
 
 	for i, check := range checks {
-		passed := check.fn(ctx)
-		if passed {
-			checksPassed++
+		ok := check.fn(ctx)
+		if ok {
+			passed++
 		} else {
-			log.Printf("  Riddle1 Check %d/%d FAIL: %s", i+1, totalChecks, check.name)
+			log.Printf("  Riddle1 Check %d/%d FAIL: %s", i+1, len(checks), check.name)
 		}
+		results = append(results, CheckResult{Name: check.name, Passed: ok})
 	}
 
-	// Determine status
-	if checksPassed == 0 {
-		status = "not_started"
-	} else if checksPassed < totalChecks {
-		status = "in_progress"
-	} else {
-		status = "completed"
+	return VerifyResult{
+		ChecksPassed: passed,
+		TotalChecks:  len(checks),
+		Status:       DetermineStatus(passed, len(checks)),
+		Checks:       results,
 	}
-
-	return checksPassed, totalChecks, status
 }
 
 // Check 1: All deployments have desired replicas running

@@ -25,34 +25,37 @@ func NewRiddle3Verifier(clientset *kubernetes.Clientset, namespace string) *Ridd
 }
 
 // Verify runs all 5 checks for Riddle 3 (Resource Right-Sizing)
-func (v *Riddle3Verifier) Verify(ctx context.Context) (checksPassed, totalChecks int, status string) {
-	checks := []func(context.Context) bool{
-		v.checkNoOOMKilledPods,
-		v.checkAllPodsRunningAndReady,
-		v.checkNoRecentOOMKills,
-		v.checkMemoryRequestSufficient,
-		v.checkWOOPApplied,
+func (v *Riddle3Verifier) Verify(ctx context.Context) VerifyResult {
+	type namedCheck struct {
+		name string
+		fn   func(context.Context) bool
 	}
 
-	totalChecks = len(checks)
-	checksPassed = 0
+	checks := []namedCheck{
+		{"No OOMKilled pods", v.checkNoOOMKilledPods},
+		{"All pods running and ready", v.checkAllPodsRunningAndReady},
+		{"No recent OOMKill terminations", v.checkNoRecentOOMKills},
+		{"Memory request >= 120Mi", v.checkMemoryRequestSufficient},
+		{"WOOP applied recommendations", v.checkWOOPApplied},
+	}
+
+	results := make([]CheckResult, 0, len(checks))
+	passed := 0
 
 	for _, check := range checks {
-		if check(ctx) {
-			checksPassed++
+		ok := check.fn(ctx)
+		if ok {
+			passed++
 		}
+		results = append(results, CheckResult{Name: check.name, Passed: ok})
 	}
 
-	// Determine status
-	if checksPassed == 0 {
-		status = "not_started"
-	} else if checksPassed < totalChecks {
-		status = "in_progress"
-	} else {
-		status = "completed"
+	return VerifyResult{
+		ChecksPassed: passed,
+		TotalChecks:  len(checks),
+		Status:       DetermineStatus(passed, len(checks)),
+		Checks:       results,
 	}
-
-	return checksPassed, totalChecks, status
 }
 
 // Check 1: No pods in OOMKilled state
@@ -159,27 +162,39 @@ func (v *Riddle3Verifier) checkMemoryRequestSufficient(ctx context.Context) bool
 
 // Check 5: WOOP applied recommendations
 func (v *Riddle3Verifier) checkWOOPApplied(ctx context.Context) bool {
-	// Method 1: Check for Recommendation CRs targeting stress-app
-	// Since we don't have dynamic client, check pod annotations instead
+	// Method 1: Check pod annotations for CAST AI / WOOP markers
 	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app=stress-app",
 		FieldSelector: "status.phase=Running",
 	})
-	if err != nil || len(pods.Items) == 0 {
-		return false
-	}
-
-	// Check for CAST AI / WOOP annotations on pods
-	for _, pod := range pods.Items {
-		for key := range pod.Annotations {
-			keyLower := strings.ToLower(key)
-			if strings.Contains(keyLower, "cast") ||
-				strings.Contains(keyLower, "woop") ||
-				strings.Contains(keyLower, "autoscaling.cast.ai") {
+	if err == nil {
+		for _, pod := range pods.Items {
+			if hasCastAnnotations(pod.Annotations) {
 				return true
 			}
 		}
 	}
 
+	// Method 2: Check deployment + pod template annotations
+	deploy, err := v.clientset.AppsV1().Deployments(v.namespace).Get(ctx, "stress-app", metav1.GetOptions{})
+	if err == nil {
+		if hasCastAnnotations(deploy.Annotations) ||
+			hasCastAnnotations(deploy.Spec.Template.Annotations) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasCastAnnotations(annotations map[string]string) bool {
+	for key := range annotations {
+		keyLower := strings.ToLower(key)
+		if strings.Contains(keyLower, "cast") ||
+			strings.Contains(keyLower, "woop") ||
+			strings.Contains(keyLower, "autoscaling.cast.ai") {
+			return true
+		}
+	}
 	return false
 }
