@@ -2,7 +2,7 @@
 # Workshop bootstrap — single entry point for kimchi + OpenCode setup
 set -e
 
-KIMCHI_VERSION="v0.1.27"
+KIMCHI_VERSION="v0.1.30"
 CASTAI_API_KEY="${KIMCHI_API_KEY:-${CASTAI_API_KEY:-}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

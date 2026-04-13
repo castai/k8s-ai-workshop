@@ -19,6 +19,7 @@ k8s-ai-workshop/
 |   +-- k8s-resource-rightsizing/   #   Riddle 3: OOMKill diagnosis + resource tuning
 |
 |-- riddles/                        # The three workshop challenges
+|   |-- 00-getting-started/         #   Step 0: Kimchi CLI registration and setup
 |   |-- 01-cluster-debugging/       #   Riddle 1: fix 11 broken microservices
 |   |   |-- setup.sh                #     Deploy broken scenario
 |   |   |-- verify.sh               #     Check progress (10 checks)
@@ -85,24 +86,22 @@ k8s-ai-workshop/
 ### Participant Flow
 
 ```bash
-# 1. Configure AI tooling
-./riddles/common/setup-opencode.sh
+# 0. Clone repo, register at kimchi.dev, get API key, install Kimchi CLI
+git clone https://github.com/castai/k8s-ai-workshop.git $HOME/workshop
+$HOME/workshop/riddles/00-getting-started/setup.sh
 
-# 2. Start Riddle 1
-cd riddles/01-cluster-debugging
-./setup.sh          # deploys broken scenario
+# 1. Start Riddle 1
+$HOME/workshop/riddles/01-cluster-debugging/setup.sh
 opencode            # AI agent loads skill from AGENTS.md
-./verify.sh         # 10 checks, pass/fail
+$HOME/workshop/riddles/01-cluster-debugging/verify.sh
 
-# 3. Start Riddle 2
-cd riddles/02-scaling-under-pressure
-./setup.sh
-./verify.sh         # 5 checks, pass/fail
+# 2. Start Riddle 2
+$HOME/workshop/riddles/02-scaling-under-pressure/setup.sh
+$HOME/workshop/riddles/02-scaling-under-pressure/verify.sh
 
-# 4. Start Riddle 3
-cd riddles/03-the-slow-burn
-./setup.sh
-./verify.sh         # 5 checks, pass/fail + score out of 1000
+# 3. Start Riddle 3
+$HOME/workshop/riddles/03-the-slow-burn/setup.sh
+$HOME/workshop/riddles/03-the-slow-burn/verify.sh
 ```
 
 ## The Three Riddles
@@ -157,6 +156,7 @@ The verify.sh scripts call `reconciler verify --riddle N --format json` to run c
 
 | Document | Audience | Content |
 |----------|----------|---------|
+| [riddles/00-getting-started/README.md](riddles/00-getting-started/README.md) | Participants | Kimchi CLI registration and setup (Step 0) |
 | [riddles/common/troubleshooting.md](riddles/common/troubleshooting.md) | Everyone | Common issues and fixes |
 | [progress-reconciler/README.md](progress-reconciler/README.md) | Developers | Reconciler architecture and deployment |
 | Each riddle's `README.md` | Participants | Challenge description, architecture, success criteria |
