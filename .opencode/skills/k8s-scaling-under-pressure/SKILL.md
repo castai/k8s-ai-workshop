@@ -112,7 +112,7 @@ Verify: `kubectl get pdb -n riddle-2`
 After HPA scales web-frontend to multiple replicas, they may all land on one node. Add topology spread constraints:
 
 ```
-kubectl patch deployment web-frontend -n riddle-2 --type=json -p='[{"op":"add","path":"/spec/template/spec/topologySpreadConstraints","value":[{"maxSkew":1,"topologyKey":"kubernetes.io/hostname","whenUnsatisfiable":"DoNotSchedule","labelSelector":{"matchLabels":{"app":"web-frontend"}}}]}]'
+kubectl patch deployment web-frontend -n riddle-2 --type=json -p='[{"op":"add","path":"/spec/template/spec/topologySpreadConstraints","value":[{"maxSkew":1,"topologyKey":"kubernetes.io/hostname","whenUnsatisfiable":"ScheduleAnyway","labelSelector":{"matchLabels":{"app":"web-frontend"}}}]}]'
 ```
 
 This triggers a rollout. Wait and verify pods are on different nodes:

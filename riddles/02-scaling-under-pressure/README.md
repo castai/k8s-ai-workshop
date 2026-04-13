@@ -88,7 +88,7 @@ After HPA scales up web-frontend, all replicas may land on one node. Add topolog
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
-    whenUnsatisfiable: DoNotSchedule
+    whenUnsatisfiable: ScheduleAnyway
     labelSelector:
       matchLabels:
         app: web-frontend

@@ -63,6 +63,11 @@ rules:
   resources: ["horizontalpodautoscalers"]
   verbs: ["get", "list", "watch"]
 
+# Read PDBs (for disruption budget checks)
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "watch"]
+
 # Read resource quotas (for optimization checks)
 - apiGroups: [""]
   resources: ["resourcequotas"]

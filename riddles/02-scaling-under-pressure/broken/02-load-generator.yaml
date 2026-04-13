@@ -3,6 +3,7 @@
 #
 # Drives continuous HTTP traffic to web-frontend and order-service,
 # creating CPU pressure that the services can't handle without HPAs.
+# Uses parallel requests to generate sufficient load on hpa-example image.
 # =============================================================================
 
 apiVersion: apps/v1
@@ -30,15 +31,18 @@ spec:
             - |
               echo "Generating load on web-frontend..."
               while true; do
+                wget -q -O- http://web-frontend > /dev/null 2>&1 &
+                wget -q -O- http://web-frontend > /dev/null 2>&1 &
+                wget -q -O- http://web-frontend > /dev/null 2>&1 &
                 wget -q -O- http://web-frontend > /dev/null 2>&1
               done
           resources:
             requests:
               cpu: "10m"
-              memory: "16Mi"
-            limits:
-              cpu: "50m"
               memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
         - name: load-orders
           image: busybox:1.36
           command: ["/bin/sh", "-c"]
@@ -46,12 +50,15 @@ spec:
             - |
               echo "Generating load on order-service..."
               while true; do
+                wget -q -O- http://order-service > /dev/null 2>&1 &
+                wget -q -O- http://order-service > /dev/null 2>&1 &
+                wget -q -O- http://order-service > /dev/null 2>&1 &
                 wget -q -O- http://order-service > /dev/null 2>&1
               done
           resources:
             requests:
               cpu: "10m"
-              memory: "16Mi"
-            limits:
-              cpu: "50m"
               memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
