@@ -51,24 +51,21 @@ The application is a simplified e-commerce backend called **ShopFlow**:
 ## Setup
 
 ```bash
-cd riddles/01-cluster-debugging
-./setup.sh
+$HOME/workshop/riddles/01-cluster-debugging/setup.sh
 ```
 
 ## Getting Started
 
-After running setup, open the UI in your browser to start investigating:
+After running setup, open the ShopFlow Admin dashboard via the **"UI For..."** tab in the Lab web terminal:
 
-```
-http://localhost:30001
-```
+![Lab web terminal UI tab](lab-terminal-ui.png)
 
 The dashboard shows live order processing status and will reflect your progress as you fix issues.
 
 ## Verification
 
 ```bash
-./verify.sh
+$HOME/workshop/riddles/01-cluster-debugging/verify.sh
 ```
 
 All 10 checks must pass to complete the riddle.
