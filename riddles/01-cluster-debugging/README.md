@@ -1,9 +1,6 @@
 # Riddle 1: Advanced Cluster Debugging
 
-| | |
-|---|---|
-| **Duration** | 45-60 minutes |
-| **Difficulty** | Intermediate to Advanced |
+**Duration:** 45-60 minutes | **Difficulty:** Intermediate to Advanced
 
 ## Riddle Overview
 

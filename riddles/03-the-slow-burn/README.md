@@ -1,10 +1,8 @@
 # Riddle 3: The Slow Burn
 
-| | |
-|---|---|
-| **Duration** | 30 minutes |
-| **Difficulty** | Intermediate |
-| **Goal** | Observe a workload that degrades over time, diagnose the pattern, and apply a correct fix with proper headroom |
+**Duration:** 30 minutes | **Difficulty:** Intermediate
+
+**Goal:** Observe a workload that degrades over time, diagnose the pattern, and apply a correct fix with proper headroom
 
 ## Overview
 

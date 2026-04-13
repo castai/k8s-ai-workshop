@@ -1,9 +1,6 @@
 # Step 0: Getting Started - Kimchi CLI Setup
 
-| | |
-|---|---|
-| **Duration** | 5 minutes |
-| **Difficulty** | Beginner |
+**Duration:** 5 minutes | **Difficulty:** Beginner
 
 ## Overview
 
