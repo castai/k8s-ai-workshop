@@ -26,7 +26,7 @@ fi
 printf "  ${GREEN}[✓]${NC} API key provided\n"
 
 # --- Stage 1: Install kimchi CLI -------------------------------------------
-if ! command -v kimchi &>/dev/null; then
+if ! command -v kimchi &>/dev/null || [ "$(kimchi version 2>/dev/null)" != "${KIMCHI_VERSION}" ]; then
   step "Install kimchi CLI (${KIMCHI_VERSION})" bash -c '
     OS=$(uname -s | tr "[:upper:]" "[:lower:]")
     ARCH=$(uname -m)

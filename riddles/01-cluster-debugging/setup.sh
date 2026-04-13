@@ -56,6 +56,15 @@ if ! kubectl cluster-info &>/dev/null; then
     exit 1
 fi
 
+# --- Prerequisite: OpenCode setup (skills + participant registration) ---
+if ! state_done "opencode-configured"; then
+    step "Configure OpenCode (MCP + skills)" "$SCRIPT_DIR/../common/setup-opencode.sh"
+    state_mark "opencode-configured"
+else
+    printf "  ${GREEN}[✓]${NC} Configure OpenCode (MCP + skills) ${DIM}(cached)${NC}\n"
+fi
+echo ""
+
 # --- Deploy Progress Reconciler ---
 # Non-fatal: riddle scenario should deploy even if the reconciler fails
 echo -e "${BLUE}Deploying Progress Reconciler...${NC}"
