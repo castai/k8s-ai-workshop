@@ -62,7 +62,7 @@ if [ "$PASS" -eq "$TOTAL" ]; then
     echo -e "${GREEN}All checks passed! Riddle complete.${NC}"
     echo ""
     echo "Next steps:"
-    echo "  Move to Riddle 2: cd ../02-autoscaler-rebalancing"
+    echo "  Move to Riddle 2: cd ../02-scaling-under-pressure"
     echo ""
     exit 0
 else

@@ -29,12 +29,12 @@ k8s-ai-workshop/
 |   |   |-- verify.sh               #     Check progress (10 checks)
 |   |   +-- broken/                 #     Intentionally broken K8s manifests
 |   |
-|   |-- 02-autoscaler-rebalancing/  #   Riddle 2: configure scaling under load
+|   |-- 02-scaling-under-pressure/  #   Riddle 2: configure scaling under load
 |   |   |-- setup.sh                #     Deploy services + load generator
 |   |   |-- verify.sh               #     Check progress (5 checks)
 |   |   +-- broken/                 #     Workload + load generator manifests
 |   |
-|   |-- 03-autoscaling/             #   Riddle 3: observe and fix OOMKilled workload
+|   |-- 03-the-slow-burn/             #   Riddle 3: observe and fix OOMKilled workload
 |   |   |-- setup.sh                #     Deploy stress-app with bad limits
 |   |   |-- verify.sh               #     Check progress + scoring (5 checks)
 |   |   +-- broken/                 #     stress-app manifest
@@ -100,12 +100,12 @@ opencode            # AI agent loads skill from AGENTS.md
 ./verify.sh         # 10 checks, pass/fail
 
 # 3. Start Riddle 2
-cd riddles/02-autoscaler-rebalancing
+cd riddles/02-scaling-under-pressure
 ./setup.sh
 ./verify.sh         # 5 checks, pass/fail
 
 # 4. Start Riddle 3
-cd riddles/03-autoscaling
+cd riddles/03-the-slow-burn
 ./setup.sh
 ./verify.sh         # 5 checks, pass/fail + score out of 1000
 ```

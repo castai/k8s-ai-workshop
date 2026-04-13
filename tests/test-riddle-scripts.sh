@@ -89,17 +89,17 @@ echo -e "${BOLD}Riddle 2: Scaling Under Pressure${NC}"
 echo ""
 
 step "First run" bash -c "
-    cd '$REPO_ROOT' && ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/02-scaling-under-pressure/setup.sh 2>&1
 "
 
 step "Namespace exists" kubectl get namespace riddle-2
 
 step "Idempotency (second run)" bash -c "
-    cd '$REPO_ROOT' && ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/02-scaling-under-pressure/setup.sh 2>&1
 "
 
 step "Verify script runs without crash" bash -c "
-    cd '$REPO_ROOT/riddles/02-autoscaler-rebalancing' && ./verify.sh 2>&1 || true
+    cd '$REPO_ROOT/riddles/02-scaling-under-pressure' && ./verify.sh 2>&1 || true
 "
 
 # --- Riddle 3 --------------------------------------------------------------
@@ -108,19 +108,19 @@ echo -e "${BOLD}Riddle 3: The Slow Burn${NC}"
 echo ""
 
 step "First run" bash -c "
-    cd '$REPO_ROOT' && ./riddles/03-autoscaling/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/03-the-slow-burn/setup.sh 2>&1
 "
 
 step "Namespace exists" kubectl get namespace riddle-3
 
 step "Idempotency (second run)" bash -c "
-    cd '$REPO_ROOT' && ./riddles/03-autoscaling/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/03-the-slow-burn/setup.sh 2>&1
 "
 
 step "Namespace still exists after re-run" kubectl get namespace riddle-3
 
 step "Verify script runs without crash" bash -c "
-    cd '$REPO_ROOT/riddles/03-autoscaling' && ./verify.sh 2>&1 || true
+    cd '$REPO_ROOT/riddles/03-the-slow-burn' && ./verify.sh 2>&1 || true
 "
 
 # --- Summary ---------------------------------------------------------------

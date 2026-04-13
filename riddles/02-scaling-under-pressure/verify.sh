@@ -66,7 +66,7 @@ if [ "$PASS" -eq "$TOTAL" ]; then
     echo "  - PodDisruptionBudgets protect availability during scaling"
     echo "  - Replicas distributed across nodes for resilience"
     echo ""
-    echo "Next: Move to Riddle 3: cd ../03-autoscaling"
+    echo "Next: Move to Riddle 3: cd ../03-the-slow-burn"
     echo ""
     exit 0
 else

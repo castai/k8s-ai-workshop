@@ -31,7 +31,7 @@ Your mission: **build the scaling and resilience infrastructure** that should ha
 ## Setup
 
 ```bash
-cd riddles/02-autoscaler-rebalancing
+cd riddles/02-scaling-under-pressure
 ./setup.sh
 ```
 

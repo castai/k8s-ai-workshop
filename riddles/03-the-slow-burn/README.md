@@ -29,7 +29,7 @@ The limit (100Mi) is fine for phase 1 but too low for the steady state. The kern
 ## Setup
 
 ```bash
-cd riddles/03-autoscaling
+cd riddles/03-the-slow-burn
 ./setup.sh
 ```
 
