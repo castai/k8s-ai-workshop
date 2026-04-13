@@ -85,7 +85,7 @@ step "Verify script runs without crash" bash -c "
 
 # --- Riddle 2 --------------------------------------------------------------
 echo ""
-echo -e "${BOLD}Riddle 2: Autoscaler & Rebalancing${NC}"
+echo -e "${BOLD}Riddle 2: Scaling Under Pressure${NC}"
 echo ""
 
 step "First run" bash -c "
@@ -104,7 +104,7 @@ step "Verify script runs without crash" bash -c "
 
 # --- Riddle 3 --------------------------------------------------------------
 echo ""
-echo -e "${BOLD}Riddle 3: Resource Right-Sizing${NC}"
+echo -e "${BOLD}Riddle 3: The Slow Burn${NC}"
 echo ""
 
 step "First run" bash -c "

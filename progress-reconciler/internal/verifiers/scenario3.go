@@ -24,7 +24,7 @@ func NewRiddle3Verifier(clientset *kubernetes.Clientset, namespace string) *Ridd
 	}
 }
 
-// Verify runs all 5 checks for Riddle 3 (Resource Right-Sizing)
+// Verify runs all 5 checks for Riddle 3 (The Slow Burn)
 func (v *Riddle3Verifier) Verify(ctx context.Context) VerifyResult {
 	type namedCheck struct {
 		name string

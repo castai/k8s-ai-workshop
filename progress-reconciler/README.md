@@ -10,9 +10,9 @@ The Progress Reconciler continuously monitors three workshop riddles, running ve
 
 | Riddle | Namespace | Riddle ID | Checks |
 |----------|-----------|-----------|--------|
-| Cluster Debugging | `riddle-1` | `2eecc00a-79a6-4d8e-92a3-06440b5d08c2` | 6 |
-| Autoscaler & Rebalancing | `riddle-2` | `24e96064-68d7-4bf9-b222-af29fe2306be` | 5 |
-| Resource Right-Sizing | `riddle-3` | `7d7c5ea7-9b3d-4890-ac40-c79b8f30c778` | 5 |
+| Cluster Debugging | `riddle-1` | `2eecc00a-79a6-4d8e-92a3-06440b5d08c2` | 10 |
+| Scaling Under Pressure | `riddle-2` | `24e96064-68d7-4bf9-b222-af29fe2306be` | 5 |
+| The Slow Burn | `riddle-3` | `7d7c5ea7-9b3d-4890-ac40-c79b8f30c778` | 5 |
 
 ### Status Values
 
@@ -205,7 +205,7 @@ POST https://hsnxzbyedgzepraxwpar.supabase.co/functions/v1/report-progress
 5. ✅ Frontend accessible at http://localhost:30001
 6. ✅ No error events (≤5 warnings)
 
-### Riddle 2: Autoscaler & Rebalancing (5 checks)
+### Riddle 2: Scaling Under Pressure (5 checks)
 
 1. ✅ HPA active for web-frontend (exists and currentReplicas >= 2)
 2. ✅ HPA active for order-service (exists and currentReplicas >= 2)

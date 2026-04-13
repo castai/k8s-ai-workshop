@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Riddle 3: Resource Right-Sizing - Setup Script
+# Riddle 3: The Slow Burn - Setup Script
 # Deploys a workload with insufficient memory limits (will OOMKill)
 
 set -e
@@ -13,7 +13,7 @@ source "$RIDDLE_DIR/../common/lib.sh"
 # External autoscaler is managing the cluster
 
 echo "=================================================="
-echo "  Riddle 3: Resource Right-Sizing - Setup"
+echo "  Riddle 3: The Slow Burn - Setup"
 echo "=================================================="
 echo ""
 
