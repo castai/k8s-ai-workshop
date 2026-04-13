@@ -107,31 +107,7 @@ else
 fi
 echo ""
 
-# 6. Check monitoring stack
-echo "📊 Checking monitoring stack..."
-if kubectl get namespace monitoring &>/dev/null; then
-    check_pass "Monitoring namespace exists"
-
-    PROM_RUNNING=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$PROM_RUNNING" -gt 0 ]; then
-        check_pass "Prometheus is running"
-    else
-        check_fail "Prometheus is not running"
-    fi
-
-    GRAFANA_RUNNING=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$GRAFANA_RUNNING" -gt 0 ]; then
-        check_pass "Grafana is running"
-    else
-        check_fail "Grafana is not running"
-    fi
-else
-    check_warn "Monitoring stack not installed"
-    echo "   Run: ./setup/install-monitoring.sh"
-fi
-echo ""
-
-# 7. Check metrics-server
+# 6. Check metrics-server
 echo "📈 Checking metrics-server..."
 if kubectl top nodes &>/dev/null; then
     check_pass "metrics-server is working"
@@ -186,8 +162,6 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo "Your workshop environment is healthy and ready!"
     echo ""
     echo "Next steps:"
-    echo "  - View Prometheus: http://localhost:30090"
-    echo "  - View Grafana: http://localhost:30091 (admin/admin)"
     echo "  - Start riddles: cd riddles/"
     echo ""
     exit 0
@@ -206,7 +180,7 @@ else
     echo ""
     echo "Common fixes:"
     echo "  - Reinstall cluster: ./setup/install-kind.sh"
-    echo "  - Reinstall monitoring: ./setup/install-monitoring.sh"
+    echo "  - Reinstall metrics-server: ./setup/install-monitoring.sh"
     echo "  - Check troubleshooting: cat riddles/common/troubleshooting.md"
     echo ""
     exit 1

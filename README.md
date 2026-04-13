@@ -10,13 +10,8 @@ k8s-ai-workshop/
 |-- setup/                          # Cluster and tooling bootstrap
 |   |-- kind-cluster-config.yaml    #   Kind cluster definition (1 CP + 3 workers, K8s 1.31)
 |   |-- install-kind.sh             #   Create kind cluster with prereq checks
-|   |-- install-monitoring.sh       #   Deploy Prometheus + Grafana + metrics-server
+|   |-- install-monitoring.sh       #   Install metrics-server (for kubectl top / HPA)
 |   +-- verify-setup.sh             #   Validate cluster health (10-category check)
-|
-|-- monitoring/                     # Helm values for observability stack
-|   |-- prometheus/values.yaml      #   kube-prometheus-stack (NodePort 30090/30091)
-|   |-- metrics-server/values.yaml  #   metrics-server for kubectl top / HPA
-|   +-- grafana/dashboards/         #   Dashboard docs and PromQL examples
 |
 |-- .opencode/skills/               # AI agent skill definitions (structured methodologies)
 |   |-- k8s-cluster-debug/          #   Riddle 1: systematic multi-failure diagnosis
@@ -80,7 +75,7 @@ k8s-ai-workshop/
 # 1. Create the kind cluster (4 nodes)
 ./setup/install-kind.sh
 
-# 2. Install monitoring stack (optional, auto-installed by riddles 2 and 3)
+# 2. Install metrics-server (optional, auto-installed by riddles 2 and 3)
 ./setup/install-monitoring.sh
 
 # 3. Verify everything is healthy

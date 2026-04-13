@@ -52,7 +52,7 @@ kind delete cluster --name workshop-cluster
 ./setup/install-kind.sh
 ```
 
-## Monitoring Stack Issues
+## metrics-server Issues
 
 ### metrics-server Not Working
 
@@ -73,47 +73,6 @@ helm delete metrics-server -n kube-system
 # Wait 60 seconds for metrics to populate
 sleep 60
 kubectl top nodes
-```
-
-### Prometheus Not Accessible
-
-**Symptoms**: http://localhost:30090 not responding
-
-**Solutions**:
-```bash
-# Check Prometheus pods
-kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus
-
-# Check service
-kubectl get svc -n monitoring | grep prometheus
-
-# Verify NodePort
-kubectl get svc prometheus-kube-prometheus-prometheus -n monitoring -o yaml | grep nodePort
-
-# Port forward as alternative
-kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
-# Access http://localhost:9090
-```
-
-### Grafana Login Issues
-
-**Symptoms**: Can't log into Grafana
-
-**Default credentials**:
-- Username: `admin`
-- Password: `admin`
-
-**If default doesn't work**:
-```bash
-# Get Grafana admin password
-kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
-
-# Reset password
-kubectl delete secret -n monitoring prometheus-grafana
-helm upgrade prometheus prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --set grafana.adminPassword=admin \
-  --reuse-values
 ```
 
 ## Riddle-Specific Issues

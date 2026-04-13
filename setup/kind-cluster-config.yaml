@@ -26,14 +26,6 @@ nodes:
       - containerPort: 30000
         hostPort: 30000
         protocol: TCP
-      # Prometheus
-      - containerPort: 30090
-        hostPort: 30090
-        protocol: TCP
-      # Grafana
-      - containerPort: 30091
-        hostPort: 30091
-        protocol: TCP
       # Mission Control API
       - containerPort: 30080
         hostPort: 30080

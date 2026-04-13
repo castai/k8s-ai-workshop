@@ -208,8 +208,7 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo "Your cluster is ready for the workshop!"
     echo ""
     echo "Next steps:"
-    echo "  1. Install monitoring: ./setup/install-monitoring.sh"
-    echo "  2. Start with riddles: cd riddles/01-cluster-debugging"
+    echo "  1. Start with riddles: cd riddles/01-cluster-debugging"
     echo ""
     exit 0
 elif [ $ERRORS -eq 0 ]; then
