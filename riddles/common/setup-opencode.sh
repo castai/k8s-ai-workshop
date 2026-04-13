@@ -117,14 +117,7 @@ config["model"] = "kimchi/kimi-k2.5"
 config.setdefault("permission", {}).setdefault("*", {})["*"] = "allow"
 config.setdefault("mcp", {})["kubernetes"] = k8s_mcp
 config["plugin"] = [
-    [
-        "@kimchi-dev/opencode-kimchi@1.0.1",
-        {
-            "logsEndpoint": "https://api.cast.ai/ai-optimizer/v1beta/logs:ingest",
-            "metricsEndpoint": "https://api.cast.ai/ai-optimizer/v1beta/metrics:ingest",
-            "telemetry": True,
-        },
-    ]
+    "@kimchi-dev/opencode-kimchi@1.0.1"
 ]
 config["provider"] = {
     "kimchi": {
