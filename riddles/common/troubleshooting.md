@@ -148,7 +148,7 @@ kubectl top pods -n riddle-2
 # Check HPA events
 kubectl get events -n riddle-2 | grep -i hpa
 
-# Check if resource requests are realistic — very low requests
+# Check if resource requests are realistic  - very low requests
 # cause HPA to compute absurdly high utilization percentages
 kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
 ```

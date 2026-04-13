@@ -102,7 +102,7 @@ kubectl get configmap inventory-config -n riddle-1
 # It EXISTS! So why can't the app read it?
 ```
 
-The pod isn't mounting the ConfigMap as a volume — it's reading it via the **Kubernetes API**. What does an app need to call the K8s API?
+The pod isn't mounting the ConfigMap as a volume  - it's reading it via the **Kubernetes API**. What does an app need to call the K8s API?
 
 ```bash
 kubectl auth can-i get configmaps --as=system:serviceaccount:riddle-1:inventory-sa -n riddle-1
@@ -129,10 +129,10 @@ kubectl edit rolebinding inventory-configmap-binding -n riddle-1
 notification-service shows Running and Ready. The Service has endpoints. But can anything actually reach it through the Service?
 
 ```bash
-# Try from another pod — goes through the Service
+# Try from another pod  - goes through the Service
 kubectl exec -n riddle-1 <any-infrastructure-pod> -- wget -q -O- -T 3 http://notification-service:8080/health
 
-# Compare with hitting the pod directly — bypasses the Service
+# Compare with hitting the pod directly  - bypasses the Service
 kubectl exec -n riddle-1 <any-infrastructure-pod> -- wget -q -O- -T 3 http://<pod-ip>:8080/health
 ```
 
@@ -168,13 +168,13 @@ kubectl logs -l app=search-service -n riddle-1 --previous
 The logs show completely normal startup. The app starts, loads data, and runs fine. No errors anywhere. Why is it being killed?
 
 ### Level 2: Narrowing down
-If the logs are clean, the app isn't crashing itself — something is killing it. Check the pod events:
+If the logs are clean, the app isn't crashing itself  - something is killing it. Check the pod events:
 
 ```bash
 kubectl describe pod -l app=search-service -n riddle-1
 ```
 
-Look for "Liveness probe failed" in the events. Now look VERY carefully at the probe configuration — compare every field between the readiness and liveness probes.
+Look for "Liveness probe failed" in the events. Now look VERY carefully at the probe configuration  - compare every field between the readiness and liveness probes.
 
 ### Level 3: The answer
 The liveness probe checks port **8081** but the container listens on port **8080**. The readiness probe correctly uses 8080. The one-digit difference is easy to miss.
@@ -265,7 +265,7 @@ kubectl edit deploy analytics-service -n riddle-1
 | Init:0/N | `kubectl logs -c <init-container>`, check what the init container depends on |
 | CrashLoopBackOff / Init:CrashLoopBackOff (with errors) | `kubectl logs -c <container>`, check RBAC, Secrets, ServiceAccounts |
 | CrashLoopBackOff (no errors) | `kubectl describe pod` → check liveness probe config carefully (port, path) |
-| CreateContainerConfigError | Check referenced Secrets/ConfigMaps — key names are case-sensitive |
+| CreateContainerConfigError | Check referenced Secrets/ConfigMaps  - key names are case-sensitive |
 | Running but unreachable | Service port/targetPort, Service selectors, NetworkPolicies |
 
 ---
@@ -273,7 +273,7 @@ kubectl edit deploy analytics-service -n riddle-1
 ## Red Herrings
 
 Not everything that looks suspicious is broken:
-- The `db-backup` CronJob is intentionally suspended — it's fine
+- The `db-backup` CronJob is intentionally suspended  - it's fine
 - The `legacy-config` ConfigMap is old but not referenced by anything active
 - The `monitoring-svc` Service has no endpoints because its deployment hasn't been created yet
 
@@ -282,5 +282,5 @@ Not everything that looks suspicious is broken:
 ## Still Stuck?
 
 1. Run `./verify.sh` to see exactly which checks are failing
-2. Think about **dependencies between issues** — some fixes unlock others
+2. Think about **dependencies between issues**  - some fixes unlock others
 3. Ask the instructor for help

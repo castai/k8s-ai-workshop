@@ -7,16 +7,16 @@
 
 ## Riddle Overview
 
-A microservices e-commerce backend has been deployed to the `riddle-1` namespace. The system is broken — multiple services are failing and the application is not functional.
+A microservices e-commerce backend has been deployed to the `riddle-1` namespace. The system is broken  - multiple services are failing and the application is not functional.
 
 Your task: **investigate the cluster, find all the issues, and fix them.**
 
-There are **8 real issues** across the services. The issues vary in nature and difficulty — scheduling errors, RBAC misconfigurations, probe mismatches, resource constraints, and more. Some are straightforward, others require deeper investigation.
+There are **8 real issues** across the services. The issues vary in nature and difficulty  - scheduling errors, RBAC misconfigurations, probe mismatches, resource constraints, and more. Some are straightforward, others require deeper investigation.
 
 Be warned:
-- **Not everything that looks broken is a root cause** — some failures are caused by other failures (cascading). Fix the upstream issue and the downstream one resolves on its own.
-- **Not everything that looks suspicious is actually broken** — there are a few red herrings deployed alongside the real issues.
-- **Some issues are only visible after you fix other issues first** — fixing one problem may reveal a second problem on the same service.
+- **Not everything that looks broken is a root cause**  - some failures are caused by other failures (cascading). Fix the upstream issue and the downstream one resolves on its own.
+- **Not everything that looks suspicious is actually broken**  - there are a few red herrings deployed alongside the real issues.
+- **Some issues are only visible after you fix other issues first**  - fixing one problem may reveal a second problem on the same service.
 
 ## Architecture
 
@@ -74,7 +74,7 @@ The dashboard shows live order processing status and will reflect your progress 
 1. Get a broad overview of the namespace: `kubectl get all -n riddle-1`
 2. Look for pods that aren't in a healthy Running/Ready state
 3. Use `kubectl describe` and `kubectl logs` to investigate
-4. Think about dependencies between services — fix upstream issues first
+4. Think about dependencies between services  - fix upstream issues first
 
 ## Verification
 
@@ -86,4 +86,4 @@ All 10 checks must pass to complete the riddle.
 
 ## Hints
 
-If you get stuck, check the **"Riddle 1: Hints"** tab in the exercise sidebar for progressive hints (3 levels per issue — try to solve it yourself before peeking).
+If you get stuck, check the **"Riddle 1: Hints"** tab in the exercise sidebar for progressive hints (3 levels per issue  - try to solve it yourself before peeking).

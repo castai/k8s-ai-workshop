@@ -109,30 +109,30 @@ cd riddles/03-the-slow-burn
 
 Each riddle teaches a distinct operational pattern:
 
-### Riddle 1: Advanced Cluster Debugging (45-60 min) — *Fix what's broken*
+### Riddle 1: Advanced Cluster Debugging (45-60 min)  - *Fix what's broken*
 
 Deploy a broken 11-service e-commerce backend ("ShopFlow") and systematically fix all interconnected issues: resource quota exhaustion, missing tolerations, ConfigMap key mismatches, selector mismatches, probe misconfigurations, init container dependency chains, and red herrings.
 
 - **Namespace**: `riddle-1`
 - **Entry point**: `http://localhost:8080` (port-forwarded api-gateway dashboard)
 - **Checks**: 10 (deployments, pods, init containers, services, HTTP connectivity)
-- **Skill**: `k8s-cluster-debug` — 5-step structured debugging methodology
+- **Skill**: `k8s-cluster-debug`  - 5-step structured debugging methodology
 
-### Riddle 2: Scaling Under Pressure (30-45 min) — *Build what's missing*
+### Riddle 2: Scaling Under Pressure (30-45 min)  - *Build what's missing*
 
-An e-commerce platform is running fine at low traffic. A load generator starts driving requests, and services struggle — but nothing is broken. The problem is that nobody configured autoscaling. Configure HPAs, right-size resource requests, add PodDisruptionBudgets, and spread replicas across nodes.
+An e-commerce platform is running fine at low traffic. A load generator starts driving requests, and services struggle  - but nothing is broken. The problem is that nobody configured autoscaling. Configure HPAs, right-size resource requests, add PodDisruptionBudgets, and spread replicas across nodes.
 
 - **Namespace**: `riddle-2`
 - **Checks**: 5 (HPAs active, deployments ready, PDBs exist, topology spread)
-- **Skill**: `k8s-scaling-under-pressure` — 5-phase scaling and resilience methodology
+- **Skill**: `k8s-scaling-under-pressure`  - 5-phase scaling and resilience methodology
 
-### Riddle 3: The Slow Burn (30 min) — *Observe and respond*
+### Riddle 3: The Slow Burn (30 min)  - *Observe and respond*
 
 A data processing workload appears healthy at first, but after ~60 seconds pods start OOMKilling. The memory limit is too low for the workload's steady-state usage. Observe the degradation pattern over time, diagnose why it happens, and apply a fix with proper headroom.
 
 - **Namespace**: `riddle-3`
 - **Checks**: 5 + scoring system (max 1000 pts, 400 bonus for proper headroom)
-- **Skill**: `k8s-resource-rightsizing` — 7-step OOMKill diagnosis methodology
+- **Skill**: `k8s-resource-rightsizing`  - 7-step OOMKill diagnosis methodology
 
 ## Progress Tracking
 

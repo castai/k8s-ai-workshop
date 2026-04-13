@@ -8,7 +8,7 @@
 
 ## Overview
 
-A data processing workload (`stress-app`) is deployed with 2 replicas. It appears healthy at first — pods show Running/Ready. But something is wrong. **Watch it for a couple of minutes before touching anything.**
+A data processing workload (`stress-app`) is deployed with 2 replicas. It appears healthy at first  - pods show Running/Ready. But something is wrong. **Watch it for a couple of minutes before touching anything.**
 
 Your mission: observe, diagnose the pattern, understand *why* it's happening, and apply a fix.
 
@@ -20,12 +20,12 @@ $HOME/workshop/riddles/03-the-slow-burn/setup.sh
 
 ## Your Mission
 
-1. **Watch the pods** — `kubectl get pods -n riddle-3 -w` and give it time. What happens?
-2. **Understand why** — What killed the container? Check the pod description for termination details.
-3. **Observe the usage pattern** — Run `kubectl top pods -n riddle-3` several times over 1-2 minutes. How does memory usage change over time?
-4. **Check the current resource configuration** — What are the requests and limits set to? How do they compare to what you observed?
-5. **Apply a fix** — Set both the memory request and limit to values that will keep the workload stable. Don't just barely clear the bar — think about what a production-safe margin looks like.
-6. **Verify stability** — Watch the pods for at least 2-3 minutes after your fix. One good minute isn't enough.
+1. **Watch the pods**  - `kubectl get pods -n riddle-3 -w` and give it time. What happens?
+2. **Understand why**  - What killed the container? Check the pod description for termination details.
+3. **Observe the usage pattern**  - Run `kubectl top pods -n riddle-3` several times over 1-2 minutes. How does memory usage change over time?
+4. **Check the current resource configuration**  - What are the requests and limits set to? How do they compare to what you observed?
+5. **Apply a fix**  - Set both the memory request and limit to values that will keep the workload stable. Don't just barely clear the bar  - think about what a production-safe margin looks like.
+6. **Verify stability**  - Watch the pods for at least 2-3 minutes after your fix. One good minute isn't enough.
 
 > **Key insight**: This isn't a broken config that fails immediately. The workload has *phases*. Don't assume the first minute of behavior tells the whole story.
 
@@ -35,7 +35,7 @@ This riddle uses a point system (max **1000 points**). You get points for stabil
 
 | Check | Points | What it measures |
 |-------|--------|-----------------|
-| 1-2 | 300 | Pods are stable — no OOMKills, all running and ready |
+| 1-2 | 300 | Pods are stable  - no OOMKills, all running and ready |
 | 3 | 100 | No recent OOMKill terminations |
 | 4 | 200 | Memory request is right-sized to actual usage |
 | 5 | 400 | Memory limit has proper production-safe headroom (bonus) |
@@ -50,8 +50,8 @@ $HOME/workshop/riddles/03-the-slow-burn/verify.sh
 
 ## Tips
 
-- **Don't rush** — the point of this riddle is to observe a time-based pattern
-- **Run `kubectl top` multiple times** — once isn't enough
-- **Exit code 137** means something specific — look it up if you don't know
-- **Requests affect scheduling, limits affect stability** — both matter
-- **After fixing, watch for at least 2 minutes** — you need to see the workload survive through its full cycle
+- **Don't rush**  - the point of this riddle is to observe a time-based pattern
+- **Run `kubectl top` multiple times**  - once isn't enough
+- **Exit code 137** means something specific  - look it up if you don't know
+- **Requests affect scheduling, limits affect stability**  - both matter
+- **After fixing, watch for at least 2 minutes**  - you need to see the workload survive through its full cycle
