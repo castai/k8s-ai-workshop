@@ -1,8 +1,10 @@
 # Riddle 2: Scaling Under Pressure
 
-**Duration**: 30-45 minutes
-**Difficulty**: Intermediate
-**Goal**: Configure horizontal pod autoscaling and resilience for services under load
+| | |
+|---|---|
+| **Duration** | 30-45 minutes |
+| **Difficulty** | Intermediate |
+| **Goal** | Configure horizontal pod autoscaling and resilience for services under load |
 
 ## Overview
 
