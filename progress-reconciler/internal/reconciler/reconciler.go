@@ -145,16 +145,16 @@ func (r *Reconciler) reconcileRiddle(ctx context.Context, riddleConfig config.Ri
 
 	result := verifier.Verify(ctx)
 
-	// Check if state changed
+	// Ratchet: only report forward progress, never regress.
+	// This prevents flapping pods from causing the dashboard to bounce.
 	r.stateMutex.Lock()
-	stateChanged := state.LastStatus != result.Status || state.ChecksPassed != result.ChecksPassed
+	improved := result.ChecksPassed > state.ChecksPassed
 	oldStatus := state.LastStatus
 	oldChecks := state.ChecksPassed
 	r.stateMutex.Unlock()
 
-	// Report if state changed and rate limit allows
-	if stateChanged && r.rateLimiter.ShouldReport(riddleConfig.RiddleID) {
-		log.Printf("📊 State changed for %s: status %s→%s, checks %d/%d→%d/%d",
+	if improved && r.rateLimiter.ShouldReport(riddleConfig.RiddleID) {
+		log.Printf("📊 Progress for %s: status %s→%s, checks %d/%d→%d/%d",
 			riddleConfig.RiddleID, oldStatus, result.Status, oldChecks, result.TotalChecks, result.ChecksPassed, result.TotalChecks)
 
 		r.reporter.QueueReport(reporter.ReportMessage{
@@ -164,8 +164,6 @@ func (r *Reconciler) reconcileRiddle(ctx context.Context, riddleConfig config.Ri
 			TotalChecks:  result.TotalChecks,
 		})
 
-		// Only update in-memory state after the report is queued,
-		// so rate-limited changes will be retried on the next cycle.
 		r.stateMutex.Lock()
 		state.LastStatus = result.Status
 		state.ChecksPassed = result.ChecksPassed
