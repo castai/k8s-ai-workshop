@@ -69,23 +69,42 @@ if [ "$IS_UBUNTU" = false ]; then
         }'
 fi
 
-# Write OpenCode config
-cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
-{
-  "\$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "*": {
-      "*": "allow"
-    }
-  },
-  "mcp": {
-    "kubernetes": {
-      "type": "local",
-      "command": ["npx", "-y", "kubernetes-mcp-server@latest"]$KUBERNETES_MCP_ENV
-    }
-  }
-}
-OPENCODE_EOF
+# Patch OpenCode config (merge required keys, preserve existing settings)
+OPENCODE_CONFIG="$OPENCODE_CONFIG_DIR/opencode.json"
+
+# Build the patch payload
+KUBERNETES_MCP='{"type": "local", "command": ["npx", "-y", "kubernetes-mcp-server@latest"]}'
+if [ "$IS_UBUNTU" = false ]; then
+    KUBERNETES_MCP=$(python3 -c "
+import json
+mcp = json.loads('$KUBERNETES_MCP')
+mcp['environment'] = {'KUBECONFIG': '$KUBECONFIG_PATH'}
+print(json.dumps(mcp))
+")
+fi
+
+python3 - "$OPENCODE_CONFIG" "$KUBERNETES_MCP" << 'PYEOF'
+import json, sys
+
+config_path = sys.argv[1]
+k8s_mcp = json.loads(sys.argv[2])
+
+# Load existing config or start fresh
+try:
+    with open(config_path) as f:
+        config = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    config = {}
+
+# Patch in required keys (preserve everything else)
+config.setdefault("$schema", "https://opencode.ai/config.json")
+config.setdefault("permission", {}).setdefault("*", {})["*"] = "allow"
+config.setdefault("mcp", {})["kubernetes"] = k8s_mcp
+
+with open(config_path, "w") as f:
+    json.dump(config, f, indent=2)
+    f.write("\n")
+PYEOF
 
 # Install skills globally so they are available from any directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
