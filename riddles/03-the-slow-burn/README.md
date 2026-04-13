@@ -42,6 +42,12 @@ This riddle uses a point system (max **1000 points**). You get points for stabil
 
 The 400-point bonus rewards setting limits with real headroom. In production, tight limits cause intermittent failures from normal memory variance.
 
+## Verification
+
+```bash
+$HOME/workshop/riddles/03-the-slow-burn/verify.sh
+```
+
 ## Tips
 
 - **Don't rush** — the point of this riddle is to observe a time-based pattern

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Riddle 1: Advanced Cluster Debugging - Setup Script
-# Deploys a broken microservices architecture with 5 interconnected issues
+# Deploys a broken microservices architecture with 8 interconnected issues
 # Usage: ./setup.sh [--kind]  (--kind creates a kind cluster, disabled by default)
 
 set -e

@@ -53,6 +53,14 @@ The load generator is already running. Services are struggling. Your job is to b
 | 4 | PodDisruptionBudgets exist (at least 2) |
 | 5 | web-frontend replicas spread across multiple nodes |
 
+## Verification
+
+```bash
+$HOME/workshop/riddles/02-scaling-under-pressure/verify.sh
+```
+
+All 5 checks must pass to complete the riddle.
+
 ## Tips
 
 - **Start with `kubectl top pods -n riddle-2`** — see the CPU pressure before changing anything

@@ -23,10 +23,19 @@ if ! kubectl cluster-info &>/dev/null; then
     exit 1
 fi
 
+# --- Prerequisite: OpenCode setup (skills + participant registration) ---
+if ! state_done "opencode-configured"; then
+    step "Configure OpenCode (MCP + skills)" "$RIDDLE_DIR/../common/setup-opencode.sh"
+    state_mark "opencode-configured"
+else
+    printf "  ${GREEN}[✓]${NC} Configure OpenCode (MCP + skills) ${DIM}(cached)${NC}\n"
+fi
+echo ""
+
 # Check metrics-server, install if missing
 echo "Checking metrics-server..."
 if ! kubectl get apiservice v1beta1.metrics.k8s.io &>/dev/null; then
-    echo -e "${YELLOW}metrics-server is not installed. Installing monitoring stack...${NC}"
+    echo -e "${YELLOW}metrics-server is not installed. Installing metrics-server...${NC}"
     "$RIDDLE_DIR/../../setup/install-monitoring.sh"
 fi
 
