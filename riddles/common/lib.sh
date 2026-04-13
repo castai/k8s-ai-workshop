@@ -106,16 +106,16 @@ _RECONCILER_DIR="${_LIB_DIR}/../../progress-reconciler"
 ensure_verifier() {
   if [ ! -x "$VERIFIER_BIN" ] || [ "$(find "$_RECONCILER_DIR" -name '*.go' -newer "$VERIFIER_BIN" 2>/dev/null | head -1)" ]; then
     if ! command -v go &>/dev/null; then
-      printf "  ${RED}[✗]${NC} Go compiler not found (required to build verifier)\n"
-      printf "      Install Go from https://go.dev/dl/ or use your package manager\n"
+      printf "  ${RED}[✗]${NC} Go compiler not found (required to build verifier)\n" >&2
+      printf "      Install Go from https://go.dev/dl/ or use your package manager\n" >&2
       return 1
     fi
-    printf "  ${DIM}Building verifier...${NC}"
+    printf "  ${DIM}Building verifier...${NC}" >&2
     if ! (cd "$_RECONCILER_DIR" && go build -o reconciler ./cmd/reconciler) 2>/dev/null; then
-      printf "\r  ${RED}[✗]${NC} Failed to build verifier binary\n"
+      printf "\r  ${RED}[✗]${NC} Failed to build verifier binary\n" >&2
       return 1
     fi
-    printf "\r  ${GREEN}[✓]${NC} Verifier built            \n"
+    printf "\r  ${GREEN}[✓]${NC} Verifier built            \n" >&2
   fi
 }
 
@@ -127,7 +127,7 @@ run_verifier() {
   ensure_verifier || return 1
 
   if ! command -v python3 &>/dev/null; then
-    printf "  ${RED}[✗]${NC} python3 not found (required to parse verifier output)\n"
+    printf "  ${RED}[✗]${NC} python3 not found (required to parse verifier output)\n" >&2
     return 1
   fi
 
