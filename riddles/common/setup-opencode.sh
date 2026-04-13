@@ -8,14 +8,15 @@ set -e
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # Register participant name in the Loveable dashboard (once, tracked via state file).
-if ! state_done "participant-registered"; then
-    # Use PARTICIPANT_NAME env var if set (from setup.sh), otherwise prompt or default
+# Skip entirely in CI to avoid polluting the shared Supabase dashboard.
+if [ "${CI:-}" != "true" ] && ! state_done "participant-registered"; then
+    # Use PARTICIPANT_NAME env var if set (from setup.sh), otherwise prompt
     if [ -n "${PARTICIPANT_NAME:-}" ]; then
         NAME="$PARTICIPANT_NAME"
     elif [ -t 0 ]; then
         read -p "Enter your name: " NAME
     else
-        NAME="ci-runner"
+        NAME="anonymous"
     fi
 
     CLUSTER_UID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}' 2>/dev/null || echo "")

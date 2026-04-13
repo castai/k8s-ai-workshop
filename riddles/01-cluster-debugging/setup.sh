@@ -66,11 +66,14 @@ fi
 echo ""
 
 # --- Deploy Progress Reconciler ---
-# Non-fatal: riddle scenario should deploy even if the reconciler fails
-echo -e "${BLUE}Deploying Progress Reconciler...${NC}"
-if ! "$SCRIPT_DIR/../../progress-reconciler/deploy.sh"; then
-    echo -e "${YELLOW}⚠ Progress reconciler deployment failed (dashboard tracking may not work)${NC}"
-    echo -e "${YELLOW}  The riddle will still work — you can retry the reconciler later.${NC}"
+# Non-fatal: riddle scenario should deploy even if the reconciler fails.
+# Skip in CI to avoid polluting the shared Supabase dashboard.
+if [ "${CI:-}" != "true" ]; then
+    echo -e "${BLUE}Deploying Progress Reconciler...${NC}"
+    if ! "$SCRIPT_DIR/../../progress-reconciler/deploy.sh"; then
+        echo -e "${YELLOW}⚠ Progress reconciler deployment failed (dashboard tracking may not work)${NC}"
+        echo -e "${YELLOW}  The riddle will still work — you can retry the reconciler later.${NC}"
+    fi
 fi
 echo ""
 
