@@ -90,11 +90,14 @@ print(json.dumps(mcp))
 ")
 fi
 
-python3 - "$OPENCODE_CONFIG" "$KUBERNETES_MCP" << 'PYEOF'
+CASTAI_API_KEY="${KIMCHI_API_KEY:-${CASTAI_API_KEY:-}}"
+
+python3 - "$OPENCODE_CONFIG" "$KUBERNETES_MCP" "$CASTAI_API_KEY" << 'PYEOF'
 import json, sys
 
 config_path = sys.argv[1]
 k8s_mcp = json.loads(sys.argv[2])
+api_key = sys.argv[3]
 
 # Load existing config or start fresh
 try:
@@ -104,9 +107,52 @@ except (FileNotFoundError, json.JSONDecodeError):
     config = {}
 
 # Patch in required keys (preserve everything else)
-config.setdefault("$schema", "https://opencode.ai/config.json")
+config["$schema"] = "https://opencode.ai/config.json"
+config["compaction"] = {"auto": True}
+config["model"] = "kimchi/kimi-k2.5"
 config.setdefault("permission", {}).setdefault("*", {})["*"] = "allow"
 config.setdefault("mcp", {})["kubernetes"] = k8s_mcp
+config["plugin"] = [
+    [
+        "@kimchi-dev/opencode-kimchi@1.0.1",
+        {
+            "logsEndpoint": "https://api.cast.ai/ai-optimizer/v1beta/logs:ingest",
+            "metricsEndpoint": "https://api.cast.ai/ai-optimizer/v1beta/metrics:ingest",
+            "telemetry": True,
+        },
+    ]
+]
+config["provider"] = {
+    "kimchi": {
+        "name": "Kimchi",
+        "npm": "@ai-sdk/openai-compatible",
+        "options": {
+            "apiKey": api_key,
+            "baseURL": "https://llm.kimchi.dev/openai/v1",
+            "litellmProxy": True,
+        },
+        "models": {
+            "kimi-k2.5": {
+                "name": "kimi-k2.5",
+                "reasoning": True,
+                "tool_call": True,
+                "limit": {"context": 262144, "output": 32768},
+            },
+            "minimax-m2.7": {
+                "name": "minimax-m2.7",
+                "reasoning": True,
+                "tool_call": True,
+                "limit": {"context": 196608, "output": 32768},
+            },
+            "nemotron-3-super-fp4": {
+                "name": "nemotron-3-super-fp4",
+                "reasoning": True,
+                "tool_call": True,
+                "limit": {"context": 1048576, "output": 256000},
+            },
+        },
+    }
+}
 
 with open(config_path, "w") as f:
     json.dump(config, f, indent=2)
