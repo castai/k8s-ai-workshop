@@ -11,20 +11,33 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 if ! state_done "participant-registered"; then
     read -p "Enter your name: " NAME
 
-    CLUSTER_UID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}')
+    CLUSTER_UID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}' 2>/dev/null || echo "")
 
-    RESPONSE=$(curl -s -X POST 'https://hsnxzbyedgzepraxwpar.supabase.co/functions/v1/register' \
-      -H 'Content-Type: application/json' \
-      -d "{\"name\": \"$NAME\", \"cluster_uid\": \"$CLUSTER_UID\"}")
+    REGISTERED=false
+    if [ -n "$CLUSTER_UID" ]; then
+        for attempt in 1 2 3; do
+            RESPONSE=$(curl -s --connect-timeout 5 -m 10 \
+              -X POST 'https://hsnxzbyedgzepraxwpar.supabase.co/functions/v1/register' \
+              -H 'Content-Type: application/json' \
+              -d "{\"name\": \"$NAME\", \"cluster_uid\": \"$CLUSTER_UID\"}" 2>/dev/null || echo "")
 
-    if echo "$RESPONSE" | grep -q '"participant"'; then
-      echo "✅ Successfully registered in tracking dashboard"
-      echo ""
-      state_mark "participant-registered"
+            if echo "$RESPONSE" | grep -q '"participant"'; then
+                echo "✅ Successfully registered in tracking dashboard"
+                echo ""
+                REGISTERED=true
+                break
+            fi
+            [ "$attempt" -lt 3 ] && sleep 2
+        done
+    fi
+
+    if [ "$REGISTERED" = true ]; then
+        state_mark "participant-registered"
     else
-      echo "❌ Registration failed:"
-      echo "$RESPONSE"
-      exit 1
+        echo -e "${YELLOW}⚠ Dashboard registration failed (network issue or service unavailable)${NC}"
+        echo -e "${YELLOW}  The workshop will work fine — progress tracking won't appear on the dashboard.${NC}"
+        echo -e "${YELLOW}  You can retry later by running: rm -f ~/.config/workshop/state && $0${NC}"
+        echo ""
     fi
 else
     printf "  ${GREEN}[✓]${NC} Participant registered ${DIM}(cached)${NC}\n"

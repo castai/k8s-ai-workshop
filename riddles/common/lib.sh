@@ -105,6 +105,11 @@ _RECONCILER_DIR="${_LIB_DIR}/../../progress-reconciler"
 
 ensure_verifier() {
   if [ ! -x "$VERIFIER_BIN" ] || [ "$(find "$_RECONCILER_DIR" -name '*.go' -newer "$VERIFIER_BIN" 2>/dev/null | head -1)" ]; then
+    if ! command -v go &>/dev/null; then
+      printf "  ${RED}[✗]${NC} Go compiler not found (required to build verifier)\n"
+      printf "      Install Go from https://go.dev/dl/ or use your package manager\n"
+      return 1
+    fi
     printf "  ${DIM}Building verifier...${NC}"
     if ! (cd "$_RECONCILER_DIR" && go build -o reconciler ./cmd/reconciler) 2>/dev/null; then
       printf "\r  ${RED}[✗]${NC} Failed to build verifier binary\n"
@@ -116,8 +121,27 @@ ensure_verifier() {
 
 # run_verifier <riddle-number> <namespace>
 # Runs the Go verifier and prints the raw JSON to stdout.
+# Stderr goes to a temp file so errors are shown on failure.
 run_verifier() {
   local riddle="$1" ns="$2"
   ensure_verifier || return 1
-  "$VERIFIER_BIN" verify --riddle "$riddle" --namespace "$ns" --format json 2>/dev/null
+
+  if ! command -v python3 &>/dev/null; then
+    printf "  ${RED}[✗]${NC} python3 not found (required to parse verifier output)\n"
+    return 1
+  fi
+
+  local stderr_file
+  stderr_file=$(mktemp)
+  local output
+  output=$("$VERIFIER_BIN" verify --riddle "$riddle" --namespace "$ns" --format json 2>"$stderr_file")
+  local rc=$?
+
+  if [ -z "$output" ] && [ -s "$stderr_file" ]; then
+    echo -e "${RED}Verifier error:${NC}" >&2
+    cat "$stderr_file" >&2
+  fi
+  rm -f "$stderr_file"
+
+  echo "$output"
 }

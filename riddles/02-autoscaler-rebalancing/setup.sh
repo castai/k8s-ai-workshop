@@ -26,9 +26,21 @@ fi
 if ! kubectl get apiservice v1beta1.metrics.k8s.io &>/dev/null 2>&1; then
     echo -e "${YELLOW}metrics-server is not installed. Installing monitoring stack...${NC}"
     "$SCRIPT_DIR/../../setup/install-monitoring.sh"
-    echo -e "${GREEN}metrics-server is working${NC}"
-    echo ""
 fi
+
+echo -n "Waiting for metrics-server to be ready..."
+for i in $(seq 1 30); do
+    if kubectl top nodes &>/dev/null 2>&1; then
+        echo -e " ${GREEN}ready${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+if ! kubectl top nodes &>/dev/null 2>&1; then
+    echo -e " ${YELLOW}not ready yet (HPA may take a moment to start scaling)${NC}"
+fi
+echo ""
 
 # Clean up if namespace already exists
 if kubectl get namespace riddle-2 &>/dev/null; then
