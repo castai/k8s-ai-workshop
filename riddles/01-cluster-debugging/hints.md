@@ -88,13 +88,13 @@ You do NOT need to modify order-service at all.
 
 ---
 
-## Issue 4: inventory-service CrashLoopBackOff
+## Issue 4: inventory-service stuck in Init:CrashLoopBackOff
 
 ### Level 1: Where to look
 ```bash
-kubectl logs -l app=inventory-service -n riddle-1
+kubectl logs -l app=inventory-service -n riddle-1 -c load-config
 ```
-The logs mention "Failed to read configmap inventory-config". Does the ConfigMap exist?
+The init container logs mention "Failed to read configmap inventory-config". Does the ConfigMap exist?
 
 ### Level 2: Narrowing down
 ```bash
@@ -263,7 +263,7 @@ kubectl edit deploy analytics-service -n riddle-1
 | No pods for a Deployment | `kubectl describe rs`, `kubectl get events`, ResourceQuotas |
 | Pod Pending | `kubectl describe pod` → scheduling errors, node taints, nodeSelector, tolerations |
 | Init:0/N | `kubectl logs -c <init-container>`, check what the init container depends on |
-| CrashLoopBackOff (with errors) | `kubectl logs`, check RBAC, Secrets, ServiceAccounts |
+| CrashLoopBackOff / Init:CrashLoopBackOff (with errors) | `kubectl logs -c <container>`, check RBAC, Secrets, ServiceAccounts |
 | CrashLoopBackOff (no errors) | `kubectl describe pod` → check liveness probe config carefully (port, path) |
 | CreateContainerConfigError | Check referenced Secrets/ConfigMaps — key names are case-sensitive |
 | Running but unreachable | Service port/targetPort, Service selectors, NetworkPolicies |

@@ -60,33 +60,43 @@ spec:
         tier: backend
     spec:
       serviceAccountName: inventory-sa
-      containers:
-        - name: inventory
+      initContainers:
+        - name: load-config
           image: bitnami/kubectl:latest
           command: ["sh", "-c"]
           args:
             - |
-              echo "Starting inventory-service..."
               echo "Attempting to load configuration from ConfigMap..."
-
-              # Try to read the configmap via the Kubernetes API
               CONFIG=$(kubectl get configmap inventory-config -n riddle-1 -o jsonpath='{.data}' 2>&1)
               EXIT_CODE=$?
-
               if [ $EXIT_CODE -ne 0 ]; then
                 echo "ERROR: Failed to read configmap inventory-config: $CONFIG"
                 echo "The inventory service cannot start without its configuration."
                 echo "Please ensure the configmap 'inventory-config' exists and is accessible."
                 exit 1
               fi
-
               echo "Configuration loaded successfully"
-              echo "inventory-service is running"
-
-              # Serve HTTP
-              while true; do
-                echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhealthy" | nc -l -p 8080 -w 1 || true
-              done
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
+      containers:
+        - name: inventory
+          image: nginx:alpine
+          command: ["sh", "-c"]
+          args:
+            - |
+              cat > /etc/nginx/conf.d/default.conf << 'CONF'
+              server {
+                  listen 8080;
+                  location / { return 200 'healthy\n'; }
+                  location /health { return 200 'healthy\n'; }
+              }
+              CONF
+              nginx -g 'daemon off;'
           ports:
             - containerPort: 8080
           resources:
@@ -96,6 +106,18 @@ spec:
             limits:
               cpu: "100m"
               memory: "64Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
