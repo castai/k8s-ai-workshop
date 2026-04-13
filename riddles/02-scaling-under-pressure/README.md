@@ -12,21 +12,14 @@ The services are struggling — CPU usage is high, response times are degrading.
 
 Your mission: **build the scaling and resilience infrastructure** that should have been there from the start.
 
-## The Problem
+## What's Deployed
 
-### What's deployed
-| Service | Replicas | CPU Request | Image |
-|---------|----------|------------|-------|
-| web-frontend | 1 | 10m | registry.k8s.io/hpa-example |
-| order-service | 1 | 10m | registry.k8s.io/hpa-example |
-| notification-service | 1 | 50m | nginx:1.27-alpine |
-| load-generator | 1 | — | busybox (wget loop) |
-
-### What's missing
-1. **No HPAs** — services can't scale with demand
-2. **CPU requests are wrong** — 10m is far below actual usage (~200-400m under load), making HPA percentage math useless
-3. **No PodDisruptionBudgets** — scaling down could kill all replicas simultaneously
-4. **No topology spread** — after HPA scales up, all replicas land on one node
+| Service | Replicas | CPU Request | Role |
+|---------|----------|------------|------|
+| web-frontend | 1 | 10m | Serves HTTP traffic |
+| order-service | 1 | 10m | Processes orders |
+| notification-service | 1 | 50m | Lightweight notification sender |
+| load-generator | 1 | — | Drives continuous traffic to frontend and orders |
 
 ## Setup
 
@@ -34,64 +27,19 @@ Your mission: **build the scaling and resilience infrastructure** that should ha
 $HOME/workshop/riddles/02-scaling-under-pressure/setup.sh
 ```
 
-## Step 1: Observe the Load
+## Your Mission
 
-```bash
-kubectl top pods -n riddle-2
-# web-frontend and order-service will show high CPU
+The load generator is already running. Services are struggling. Your job is to build the scaling and resilience infrastructure that's missing. There are **5 things** you need to do:
 
-kubectl get hpa -n riddle-2
-# No HPAs exist
-```
+1. **Observe** — Start by understanding what's happening. How much CPU are the services actually using? (`kubectl top pods -n riddle-2`)
+2. **Right-size resource requests** — The CPU requests don't match reality. Why does this matter for autoscaling? (Hint: HPA calculates utilization as `current_usage / request`)
+3. **Add horizontal pod autoscaling** — Services need to scale with demand
+4. **Protect availability** — What happens if all replicas get evicted at once during a scale-down?
+5. **Spread replicas across nodes** — After scaling up, are replicas actually distributed? What if a node goes down?
 
-## Step 2: Right-Size Resource Requests
+> **Important**: The order matters. Think about why step 2 must come before step 3.
 
-The CPU request on web-frontend and order-service is `10m`. Under load, actual usage is `200-400m`. HPA calculates utilization as `current / request` — with a 10m request and 300m usage, that's 3000% utilization. The HPA would try to create dozens of replicas.
-
-Set CPU requests to a realistic value (e.g., `200m`) so HPA targets work correctly.
-
-## Step 3: Create HPAs
-
-```bash
-kubectl autoscale deployment web-frontend -n riddle-2 --cpu-percent=50 --min=1 --max=5
-kubectl autoscale deployment order-service -n riddle-2 --cpu-percent=50 --min=1 --max=5
-```
-
-Watch the HPAs scale:
-```bash
-kubectl get hpa -n riddle-2 -w
-```
-
-## Step 4: Add PodDisruptionBudgets
-
-Create PDBs so that scaling down (or node maintenance) doesn't kill all replicas at once:
-
-```yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: web-frontend-pdb
-  namespace: riddle-2
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: web-frontend
-```
-
-## Step 5: Spread Replicas Across Nodes
-
-After HPA scales up web-frontend, all replicas may land on one node. Add topology spread constraints to distribute them:
-
-```yaml
-topologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: kubernetes.io/hostname
-    whenUnsatisfiable: ScheduleAnyway
-    labelSelector:
-      matchLabels:
-        app: web-frontend
-```
+> **Note**: `notification-service` is lightweight and doesn't need autoscaling.
 
 ## Success Criteria
 
@@ -105,8 +53,6 @@ topologySpreadConstraints:
 
 ## Tips
 
-1. **Start with `kubectl top pods -n riddle-2`** — see the CPU pressure
-2. **Fix resource requests first** — HPA can't work properly with 10m requests
-3. **Watch HPA with `-w`** — it takes 15-30 seconds for metrics to update
-4. **Don't scale notification-service** — it's lightweight and doesn't need HPA
-5. **Topology spread requires >= 2 replicas** — wait for HPA to scale before checking
+- **Start with `kubectl top pods -n riddle-2`** — see the CPU pressure before changing anything
+- **Watch HPA with `-w`** — it takes 15-30 seconds for metrics to update after creation
+- **Topology spread requires >= 2 replicas** — wait for HPA to scale before verifying

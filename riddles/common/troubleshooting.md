@@ -124,36 +124,35 @@ helm upgrade prometheus prometheus-community/kube-prometheus-stack \
 
 **Check**:
 ```bash
-# Verify image was updated
-kubectl describe deployment frontend -n riddle-1 | grep Image
+# Get an overview of all pods
+kubectl get pods -n riddle-1
 
-# Check if ConfigMap was created
-kubectl get configmap -n riddle-1
+# Check events for errors
+kubectl get events -n riddle-1 --sort-by='.lastTimestamp'
 
-# Verify service selector matches pod labels
-kubectl get svc frontend -n riddle-1 -o yaml | grep -A 3 selector
-kubectl get pods -n riddle-1 -l app=frontend --show-labels
+# Verify service endpoints exist
+kubectl get endpoints -n riddle-1
 ```
 
-#### Frontend Not Accessible
+#### API Gateway Not Accessible
 
 **Solutions**:
 ```bash
 # Check service endpoints
-kubectl get endpoints -n riddle-1 frontend
+kubectl get endpoints -n riddle-1 api-gateway
 
 # Verify NodePort
-kubectl get svc frontend -n riddle-1
+kubectl get svc api-gateway -n riddle-1
 
 # Try port-forward
-kubectl port-forward -n riddle-1 svc/frontend 8080:8080
+kubectl port-forward -n riddle-1 svc/api-gateway 8080:8080
 curl http://localhost:8080
 
-# Check if all pods are Running
-kubectl get pods -n riddle-1
+# Check if the pod is Running
+kubectl get pods -n riddle-1 -l app=api-gateway
 ```
 
-### Riddle 2: Autoscaling
+### Riddle 2: Scaling Under Pressure
 
 #### HPA Shows "unknown" Metrics
 
@@ -165,32 +164,14 @@ kubectl get pods -n riddle-1
 kubectl top nodes
 kubectl top pods -n riddle-2
 
-# Verify resource requests are defined
-kubectl get deployment frontend -n riddle-2 -o yaml | grep -A 5 resources
+# Verify resource requests are defined on the deployment
+kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
 
-# Wait for metrics to populate (60 seconds)
-sleep 60
+# Wait for metrics to populate (60 seconds after creating HPA)
 kubectl get hpa -n riddle-2
 
 # Check HPA conditions
-kubectl describe hpa frontend -n riddle-2
-```
-
-#### Pods Still Getting OOMKilled
-
-**Symptoms**: Pods restart with OOMKilled reason
-
-**Solutions**:
-```bash
-# Check actual memory usage
-kubectl top pods -n riddle-2
-
-# If usage > limit, increase limit
-kubectl set resources deployment frontend -n riddle-2 \
-  --limits=memory=1Gi
-
-# Verify limits were applied
-kubectl describe deployment frontend -n riddle-2 | grep -A 5 Limits
+kubectl describe hpa -n riddle-2
 ```
 
 #### HPA Not Scaling
@@ -199,52 +180,55 @@ kubectl describe deployment frontend -n riddle-2 | grep -A 5 Limits
 
 **Solutions**:
 ```bash
-# Check HPA status
-kubectl describe hpa frontend -n riddle-2
+# Check HPA status and events
+kubectl describe hpa -n riddle-2
 
 # Verify load is actually high
 kubectl top pods -n riddle-2
 
 # Check HPA events
-kubectl get events -n riddle-2 | grep HPA
+kubectl get events -n riddle-2 | grep -i hpa
 
-# Ensure min/max replicas are different
-kubectl get hpa frontend -n riddle-2
+# Check if resource requests are realistic — very low requests
+# cause HPA to compute absurdly high utilization percentages
+kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
 ```
 
-### Riddle 3: Optimization
+### Riddle 3: The Slow Burn
 
-#### Can't Apply Optimized Manifests
+#### Pods Keep Restarting
 
-**Symptoms**: `kubectl apply` fails with validation errors
+**Symptoms**: Pods cycle between Running and OOMKilled with increasing restart counts
 
 **Solutions**:
 ```bash
-# Check YAML syntax
-kubectl apply -f optimized/ --dry-run=client
+# Check pod status and restart counts
+kubectl get pods -n riddle-3
 
-# Apply individual files
-kubectl apply -f optimized/frontend-optimized.yaml
-kubectl apply -f optimized/hpa.yaml
+# Check the termination reason
+kubectl describe pod -l app=stress-app -n riddle-3
 
-# Check for conflicting resources
-kubectl get priorityclass high-priority
+# Watch memory usage over time (run multiple times)
+kubectl top pods -n riddle-3
+
+# Check current resource configuration
+kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
 ```
 
-#### Resource Quota Blocks Deployments
+#### Fix Applied But Pods Still OOMKilling
 
-**Symptoms**: Pods stay Pending, events show quota exceeded
+**Symptoms**: Changed resource values but pods still crash
 
 **Solutions**:
 ```bash
-# Check current quota usage
-kubectl describe resourcequota -n riddle-3
+# Verify the new values actually took effect
+kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
 
-# Temporarily increase quota
-kubectl edit resourcequota compute-quota -n riddle-3
+# Wait for rollout to complete
+kubectl rollout status deployment/stress-app -n riddle-3
 
-# Or delete quota during testing
-kubectl delete resourcequota compute-quota -n riddle-3
+# Watch pods for at least 2-3 minutes to cover the full usage cycle
+kubectl get pods -n riddle-3 -w
 ```
 
 ## AI Integration Issues

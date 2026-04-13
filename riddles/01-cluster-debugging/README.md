@@ -9,7 +9,12 @@ A microservices e-commerce backend has been deployed to the `riddle-1` namespace
 
 Your task: **investigate the cluster, find all the issues, and fix them.**
 
-The issues vary in nature and difficulty. Some are straightforward, others require deeper investigation. Not everything that looks broken is the root cause, and not everything that looks healthy is actually working.
+There are **8 real issues** across the services. The issues vary in nature and difficulty — scheduling errors, RBAC misconfigurations, probe mismatches, resource constraints, and more. Some are straightforward, others require deeper investigation.
+
+Be warned:
+- **Not everything that looks broken is a root cause** — some failures are caused by other failures (cascading). Fix the upstream issue and the downstream one resolves on its own.
+- **Not everything that looks suspicious is actually broken** — there are a few red herrings deployed alongside the real issues.
+- **Some issues are only visible after you fix other issues first** — fixing one problem may reveal a second problem on the same service.
 
 ## Architecture
 
@@ -62,6 +67,13 @@ After running setup, open the ShopFlow Admin dashboard via the **"UI For..."** t
 
 The dashboard shows live order processing status and will reflect your progress as you fix issues.
 
+## Where to Start
+
+1. Get a broad overview of the namespace: `kubectl get all -n riddle-1`
+2. Look for pods that aren't in a healthy Running/Ready state
+3. Use `kubectl describe` and `kubectl logs` to investigate
+4. Think about dependencies between services — fix upstream issues first
+
 ## Verification
 
 ```bash
@@ -72,4 +84,4 @@ All 10 checks must pass to complete the riddle.
 
 ## Hints
 
-If you get stuck, check the **"Riddle 1: Hints"** tab in the exercise sidebar for progressive hints.
+If you get stuck, check the **"Riddle 1: Hints"** tab in the exercise sidebar for progressive hints (3 levels per issue — try to solve it yourself before peeking).
