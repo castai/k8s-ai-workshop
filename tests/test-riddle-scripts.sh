@@ -89,24 +89,14 @@ echo -e "${BOLD}Riddle 2: Autoscaler & Rebalancing${NC}"
 echo ""
 
 step "First run" bash -c "
-    cd '$REPO_ROOT' && echo '' | ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
 "
 
 step "Namespace exists" kubectl get namespace riddle-2
 
 step "Idempotency (second run)" bash -c "
-    cd '$REPO_ROOT' && echo '' | ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
+    cd '$REPO_ROOT' && ./riddles/02-autoscaler-rebalancing/setup.sh 2>&1
 "
-
-step "No duplicate CASTAI_API_KEY env vars" bash -c '
-    ENV_JSON=$(kubectl get deployment progress-reconciler -n progress-reconciler \
-        -o jsonpath="{.spec.template.spec.containers[0].env}" 2>/dev/null || echo "[]")
-    DUP_COUNT=$(echo "$ENV_JSON" | grep -o "CASTAI_API_KEY" | wc -l | tr -d " ")
-    if [ "$DUP_COUNT" -gt 1 ]; then
-        echo "Expected <=1 CASTAI_API_KEY entries, got $DUP_COUNT"
-        exit 1
-    fi
-'
 
 step "Verify script runs without crash" bash -c "
     cd '$REPO_ROOT/riddles/02-autoscaler-rebalancing' && ./verify.sh 2>&1 || true

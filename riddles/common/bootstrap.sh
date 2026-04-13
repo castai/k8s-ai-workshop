@@ -87,8 +87,7 @@ fi
 
 # --- Stage 5: Configure OpenCode MCP + skills ------------------------------
 if ! state_done "opencode-configured"; then
-  step "Configure OpenCode (MCP + skills)" env CASTAI_API_KEY="$CASTAI_API_KEY" \
-    "$SCRIPT_DIR/setup-opencode.sh" --with-castai
+  step "Configure OpenCode (MCP + skills)" "$SCRIPT_DIR/setup-opencode.sh"
   state_mark "opencode-configured"
 else
   printf "  ${GREEN}[✓]${NC} Configure OpenCode (MCP + skills) ${DIM}(cached)${NC}\n"

@@ -2,20 +2,12 @@ package verifiers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// Riddle2Verifier implements verification for riddle-2 (Autoscaler & Rebalancing)
+// Riddle2Verifier implements verification for riddle-2 (Scaling Under Pressure)
 type Riddle2Verifier struct {
 	clientset *kubernetes.Clientset
 	namespace string
@@ -29,7 +21,7 @@ func NewRiddle2Verifier(clientset *kubernetes.Clientset, namespace string) *Ridd
 	}
 }
 
-// Verify runs all 5 checks for Riddle 2 (Autoscaler & Rebalancing)
+// Verify runs all 5 checks for Riddle 2 (Scaling Under Pressure)
 func (v *Riddle2Verifier) Verify(ctx context.Context) VerifyResult {
 	type namedCheck struct {
 		name string
@@ -37,11 +29,11 @@ func (v *Riddle2Verifier) Verify(ctx context.Context) VerifyResult {
 	}
 
 	checks := []namedCheck{
+		{"HPA active for web-frontend", v.checkHPAWebFrontend},
+		{"HPA active for order-service", v.checkHPAOrderService},
 		{"All deployments ready", v.checkAllDeploymentsReady},
-		{"No pods pending", v.checkNoPendingPods},
-		{"No pods in error states", v.checkNoErrorPods},
-		{"All pods fully ready", v.checkAllPodsFullyReady},
-		{"CAST AI rebalancing completed", v.checkCASTAIRebalancingCompleted},
+		{"PodDisruptionBudgets exist", v.checkPDBsExist},
+		{"web-frontend replicas on different nodes", v.checkTopologySpread},
 	}
 
 	results := make([]CheckResult, 0, len(checks))
@@ -63,21 +55,49 @@ func (v *Riddle2Verifier) Verify(ctx context.Context) VerifyResult {
 	}
 }
 
-// Check 1: All deployments have desired replicas ready
-func (v *Riddle2Verifier) checkAllDeploymentsReady(ctx context.Context) bool {
-	deployments, err := v.clientset.AppsV1().Deployments(v.namespace).List(ctx, metav1.ListOptions{})
+// Check 1: HPA exists for web-frontend and has scaled to >= 2 replicas
+func (v *Riddle2Verifier) checkHPAWebFrontend(ctx context.Context) bool {
+	return v.checkHPAActive(ctx, "web-frontend", 2)
+}
+
+// Check 2: HPA exists for order-service and has scaled to >= 2 replicas
+func (v *Riddle2Verifier) checkHPAOrderService(ctx context.Context) bool {
+	return v.checkHPAActive(ctx, "order-service", 2)
+}
+
+// checkHPAActive checks if an HPA targeting the given deployment exists and has scaled
+func (v *Riddle2Verifier) checkHPAActive(ctx context.Context, deploymentName string, minReplicas int32) bool {
+	hpas, err := v.clientset.AutoscalingV2().HorizontalPodAutoscalers(v.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
 	}
 
+	for _, hpa := range hpas.Items {
+		if hpa.Spec.ScaleTargetRef.Name == deploymentName {
+			return hpa.Status.CurrentReplicas >= minReplicas
+		}
+	}
+
+	return false
+}
+
+// Check 3: All deployments have desired replicas ready
+func (v *Riddle2Verifier) checkAllDeploymentsReady(ctx context.Context) bool {
+	deployments, err := v.clientset.AppsV1().Deployments(v.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil || len(deployments.Items) == 0 {
+		return false
+	}
+
 	for _, deploy := range deployments.Items {
+		// Skip the load generator — it doesn't need to be "ready" in the same sense
+		if deploy.Name == "load-generator" {
+			continue
+		}
 		desired := int32(0)
 		if deploy.Spec.Replicas != nil {
 			desired = *deploy.Spec.Replicas
 		}
-		ready := deploy.Status.ReadyReplicas
-
-		if ready != desired {
+		if deploy.Status.ReadyReplicas < desired {
 			return false
 		}
 	}
@@ -85,193 +105,31 @@ func (v *Riddle2Verifier) checkAllDeploymentsReady(ctx context.Context) bool {
 	return true
 }
 
-// Check 2: No pods in Pending state
-func (v *Riddle2Verifier) checkNoPendingPods(ctx context.Context) bool {
+// Check 4: At least 2 PodDisruptionBudgets exist in the namespace
+func (v *Riddle2Verifier) checkPDBsExist(ctx context.Context) bool {
+	pdbs, err := v.clientset.PolicyV1().PodDisruptionBudgets(v.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false
+	}
+
+	return len(pdbs.Items) >= 2
+}
+
+// Check 5: web-frontend pods are scheduled on at least 2 distinct nodes
+func (v *Riddle2Verifier) checkTopologySpread(ctx context.Context) bool {
 	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
-		FieldSelector: "status.phase=Pending",
+		LabelSelector: "app=web-frontend",
 	})
-	if err != nil {
+	if err != nil || len(pods.Items) < 2 {
 		return false
 	}
 
-	return len(pods.Items) == 0
-}
-
-// Check 3: No pods in error states (exclude completed Job pods)
-func (v *Riddle2Verifier) checkNoErrorPods(ctx context.Context) bool {
-	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return false
-	}
-
-	errorStates := []string{
-		"CrashLoopBackOff",
-		"ImagePullBackOff",
-		"Error",
-		"ErrImagePull",
-		"CreateContainerConfigError",
-	}
-
+	nodes := make(map[string]bool)
 	for _, pod := range pods.Items {
-		// Skip completed job pods
-		if pod.Status.Phase == corev1.PodSucceeded {
-			continue
-		}
-
-		// Check container statuses for error states
-		for _, containerStatus := range pod.Status.ContainerStatuses {
-			if containerStatus.State.Waiting != nil {
-				reason := containerStatus.State.Waiting.Reason
-				for _, errorState := range errorStates {
-					if strings.Contains(reason, errorState) {
-						return false
-					}
-				}
-			}
+		if pod.Spec.NodeName != "" {
+			nodes[pod.Spec.NodeName] = true
 		}
 	}
 
-	return true
-}
-
-// Check 4: All deployment pods fully Ready (exclude completed Job pods)
-func (v *Riddle2Verifier) checkAllPodsFullyReady(ctx context.Context) bool {
-	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return false
-	}
-
-	runningPods := 0
-	for _, pod := range pods.Items {
-		// Skip completed job pods
-		if pod.Status.Phase == corev1.PodSucceeded {
-			continue
-		}
-
-		runningPods++
-
-		// Check if all containers are ready
-		for _, containerStatus := range pod.Status.ContainerStatuses {
-			if !containerStatus.Ready {
-				return false
-			}
-		}
-	}
-
-	// Must have at least one pod running
-	return runningPods > 0
-}
-
-// Check 5: CAST AI rebalancing completed successfully
-func (v *Riddle2Verifier) checkCASTAIRebalancingCompleted(ctx context.Context) bool {
-	// Get API key from environment
-	apiKey := os.Getenv("CASTAI_API_KEY")
-	if apiKey == "" {
-		// API key not configured - skip this check (return false)
-		return false
-	}
-
-	// Get cluster ID from CAST AI API
-	clusterID, err := v.getCASTAIClusterID(ctx, apiKey)
-	if err != nil || clusterID == "" {
-		return false
-	}
-
-	// Query rebalancing plans for the cluster
-	completedCount, err := v.getCompletedRebalancingPlans(ctx, apiKey, clusterID)
-	if err != nil {
-		return false
-	}
-
-	// Check if at least one rebalancing plan completed
-	return completedCount > 0
-}
-
-// getCASTAIClusterID retrieves the cluster ID from CAST AI API
-func (v *Riddle2Verifier) getCASTAIClusterID(ctx context.Context, apiKey string) (string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.cast.ai/v1/kubernetes/external-clusters", nil)
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("X-API-Key", apiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var result struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", err
-	}
-
-	if len(result.Items) == 0 {
-		return "", fmt.Errorf("no clusters found")
-	}
-
-	return result.Items[0].ID, nil
-}
-
-// getCompletedRebalancingPlans retrieves the count of completed rebalancing plans
-func (v *Riddle2Verifier) getCompletedRebalancingPlans(ctx context.Context, apiKey, clusterID string) (int, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("https://api.cast.ai/v1/kubernetes/clusters/%s/rebalancing-plans", clusterID)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	req.Header.Set("X-API-Key", apiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-
-	var result struct {
-		Items []struct {
-			Status string `json:"status"`
-		} `json:"items"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, err
-	}
-
-	// Count completed plans
-	completedCount := 0
-	for _, plan := range result.Items {
-		if plan.Status == "finished" {
-			completedCount++
-		}
-	}
-
-	return completedCount, nil
+	return len(nodes) >= 2
 }

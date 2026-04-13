@@ -1,13 +1,18 @@
 # =============================================================================
-# Riddle 2: Persistent microservices (small footprint)
+# Riddle 2: E-commerce platform services
 #
-# These are the "real" workloads that remain after temporary jobs complete.
-# Total persistent: ~1 CPU / ~1.2Gi - fits on 2 nodes comfortably.
-# After jobs finish, the cluster will have 6+ nodes but only need 2-3
-# for these workloads, creating waste that the rebalancer can optimize.
+# These services are deployed and running fine at low traffic.
+# The load-generator (separate manifest) will start driving traffic,
+# revealing that there is no autoscaling, no PDBs, and no topology spread.
+#
+# Issues participants must fix:
+#   1. CPU requests are too low (10m) — HPA math will be broken
+#   2. No HPAs exist — services can't scale under load
+#   3. No PodDisruptionBudgets — scale-down could kill all replicas
+#   4. No topology spread — all replicas land on same node
 # =============================================================================
 
-# --- Web Frontend: 2 replicas x 200m / 256Mi ---
+# --- Web Frontend: 1 replica, handles incoming traffic ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +22,7 @@ metadata:
     app: web-frontend
     tier: frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: web-frontend
@@ -29,16 +34,16 @@ spec:
     spec:
       containers:
         - name: web-frontend
-          image: nginx:1.27-alpine
+          image: registry.k8s.io/hpa-example
           ports:
             - containerPort: 80
           resources:
             requests:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "10m"       # Too low! Actual usage under load is ~200-400m
+              memory: "64Mi"
             limits:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "500m"
+              memory: "128Mi"
           readinessProbe:
             httpGet:
               path: /
@@ -63,20 +68,9 @@ spec:
   ports:
     - port: 80
       targetPort: 80
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: web-frontend-pdb
-  namespace: riddle-2
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: web-frontend
 
 ---
-# --- Order Service: 2 replicas x 200m / 256Mi ---
+# --- Order Service: 1 replica, processes orders from frontend ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -86,7 +80,7 @@ metadata:
     app: order-service
     tier: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: order-service
@@ -98,16 +92,16 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: nginx:1.27-alpine
+          image: registry.k8s.io/hpa-example
           ports:
             - containerPort: 80
           resources:
             requests:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "10m"       # Too low! Actual usage under load is ~200-400m
+              memory: "64Mi"
             limits:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "500m"
+              memory: "128Mi"
           readinessProbe:
             httpGet:
               path: /
@@ -132,20 +126,9 @@ spec:
   ports:
     - port: 80
       targetPort: 80
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: order-service-pdb
-  namespace: riddle-2
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: order-service
 
 ---
-# --- Notification Service: 1 replica x 100m / 128Mi ---
+# --- Notification Service: 1 replica, lightweight, stable ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -172,8 +155,8 @@ spec:
             - containerPort: 80
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
               cpu: "100m"
               memory: "128Mi"

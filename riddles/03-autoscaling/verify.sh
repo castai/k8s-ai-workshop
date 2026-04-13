@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Riddle 3: Resource Right-Sizing - Verification & Scoring
+# Riddle 3: The Slow Burn - Verification & Scoring
 # Checks if OOMKill issues are resolved and resources are properly configured
 
 set +e
@@ -12,7 +12,7 @@ source "$SCRIPT_DIR/../common/lib.sh"
 
 echo ""
 echo -e "${CYAN}==================================================${NC}"
-echo -e "${CYAN}  Riddle 3: Resource Right-Sizing - Verification${NC}"
+echo -e "${CYAN}  Riddle 3: The Slow Burn - Verification${NC}"
 echo -e "${CYAN}==================================================${NC}"
 echo ""
 
@@ -35,7 +35,7 @@ echo "Running checks..."
 echo ""
 
 # Parse check results
-# Check order: 0=NoOOM, 1=AllRunning, 2=NoRecentOOM, 3=MemReq, 4=WOOP
+# Check order: 0=NoOOM, 1=AllRunning, 2=NoRecentOOM, 3=MemReq, 4=MemLimit
 readarray -t NAMES < <(echo "$RESULT" | python3 -c "
 import sys, json
 for c in json.load(sys.stdin)['checks']:
@@ -65,7 +65,7 @@ NO_OOMKILL="${PASSED[0]}"
 ALL_RUNNING="${PASSED[1]}"
 NO_RECENT_OOM="${PASSED[2]}"
 MEM_REQ_OK="${PASSED[3]}"
-WOOP_APPLIED="${PASSED[4]}"
+MEM_LIMIT_OK="${PASSED[4]}"
 
 # ── Read display metadata from verifier output ───────────────────────
 
@@ -96,13 +96,13 @@ if [ "$NO_RECENT_OOM" = "True" ]; then
     SCORE=$((SCORE + 100))
 fi
 
-# Check 4: Resource configuration correct (200 pts)
+# Check 4: Memory request correct (200 pts)
 if [ "$MEM_REQ_OK" = "True" ]; then
     SCORE=$((SCORE + 200))
 fi
 
-# Check 5: WOOP applied (400 pts bonus)
-if [ "$WOOP_APPLIED" = "True" ]; then
+# Check 5: Memory limit with headroom (400 pts bonus)
+if [ "$MEM_LIMIT_OK" = "True" ]; then
     SCORE=$((SCORE + 400))
 fi
 
@@ -111,10 +111,10 @@ echo ""
 echo "  Resource Configuration:"
 echo "    - Memory request: $MEM_REQ"
 echo "    - Running pods:   $RUNNING_COUNT/$TOTAL_PODS"
-if [ "$WOOP_APPLIED" = "True" ]; then
-    echo -e "    - WOOP:           ${GREEN}Recommendations applied${NC}"
+if [ "$MEM_LIMIT_OK" = "True" ]; then
+    echo -e "    - Headroom:       ${GREEN}Limit set with proper margin${NC}"
 else
-    echo -e "    - WOOP:           ${YELLOW}No recommendations detected${NC}"
+    echo -e "    - Headroom:       ${YELLOW}Limit may be too tight (need >= 150Mi)${NC}"
 fi
 echo ""
 
@@ -134,8 +134,8 @@ else
     if [ "$MEM_REQ_OK" = "False" ]; then
         echo "  - Check resources:     kubectl get deploy stress-app -n riddle-3 -o yaml | grep -A 8 resources"
     fi
-    if [ "$WOOP_APPLIED" = "False" ]; then
-        echo "  - Check WOOP status:   kubectl get recommendations -n riddle-3"
+    if [ "$MEM_LIMIT_OK" = "False" ]; then
+        echo "  - Set memory limit >= 150Mi for proper headroom above 120Mi steady-state usage"
     fi
     echo ""
     exit 1

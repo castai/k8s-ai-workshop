@@ -3,7 +3,6 @@ package verifiers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -37,7 +36,7 @@ func (v *Riddle3Verifier) Verify(ctx context.Context) VerifyResult {
 		{"All pods running and ready", v.checkAllPodsRunningAndReady},
 		{"No recent OOMKill terminations", v.checkNoRecentOOMKills},
 		{"Memory request >= 120Mi", v.checkMemoryRequestSufficient},
-		{"WOOP applied recommendations", v.checkWOOPApplied},
+		{"Memory limit >= 150Mi (headroom)", v.checkMemoryLimitSufficient},
 	}
 
 	results := make([]CheckResult, 0, len(checks))
@@ -184,7 +183,7 @@ func (v *Riddle3Verifier) checkNoRecentOOMKills(ctx context.Context) bool {
 
 // Check 4: Memory request >= 120Mi (checking actual pod spec, not deployment)
 func (v *Riddle3Verifier) checkMemoryRequestSufficient(ctx context.Context) bool {
-	// Get running pods (WOOP modifies pod spec directly, not deployment)
+	// Get running pods (VPA may modify pod spec directly, not deployment)
 	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app=stress-app",
 		FieldSelector: "status.phase=Running",
@@ -208,41 +207,33 @@ func (v *Riddle3Verifier) checkMemoryRequestSufficient(ctx context.Context) bool
 	return memRequest.Cmp(minMemory) >= 0
 }
 
-// Check 5: WOOP applied recommendations
-func (v *Riddle3Verifier) checkWOOPApplied(ctx context.Context) bool {
-	// Method 1: Check pod annotations for CAST AI / WOOP markers
+// Check 5: Memory limit >= 150Mi (rewards setting limit with proper headroom)
+func (v *Riddle3Verifier) checkMemoryLimitSufficient(ctx context.Context) bool {
+	// Check running pods first (VPA may modify pod spec directly)
 	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app=stress-app",
 		FieldSelector: "status.phase=Running",
 	})
-	if err == nil {
-		for _, pod := range pods.Items {
-			if hasCastAnnotations(pod.Annotations) {
-				return true
+	if err == nil && len(pods.Items) > 0 {
+		pod := pods.Items[0]
+		if len(pod.Spec.Containers) > 0 {
+			memLimit := pod.Spec.Containers[0].Resources.Limits.Memory()
+			if memLimit != nil {
+				minLimit := resource.MustParse("150Mi")
+				return memLimit.Cmp(minLimit) >= 0
 			}
 		}
 	}
 
-	// Method 2: Check deployment + pod template annotations
+	// Fall back to deployment spec
 	deploy, err := v.clientset.AppsV1().Deployments(v.namespace).Get(ctx, "stress-app", metav1.GetOptions{})
-	if err == nil {
-		if hasCastAnnotations(deploy.Annotations) ||
-			hasCastAnnotations(deploy.Spec.Template.Annotations) {
-			return true
+	if err == nil && len(deploy.Spec.Template.Spec.Containers) > 0 {
+		memLimit := deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Memory()
+		if memLimit != nil {
+			minLimit := resource.MustParse("150Mi")
+			return memLimit.Cmp(minLimit) >= 0
 		}
 	}
 
-	return false
-}
-
-func hasCastAnnotations(annotations map[string]string) bool {
-	for key := range annotations {
-		keyLower := strings.ToLower(key)
-		if strings.Contains(keyLower, "cast") ||
-			strings.Contains(keyLower, "woop") ||
-			strings.Contains(keyLower, "autoscaling.cast.ai") {
-			return true
-		}
-	}
 	return false
 }

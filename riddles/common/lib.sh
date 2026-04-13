@@ -116,28 +116,8 @@ ensure_verifier() {
 
 # run_verifier <riddle-number> <namespace>
 # Runs the Go verifier and prints the raw JSON to stdout.
-# Exports CASTAI_API_KEY from OpenCode config if available (for riddle 2).
 run_verifier() {
   local riddle="$1" ns="$2"
   ensure_verifier || return 1
-
-  # Export API key from OpenCode config if not already set
-  if [ -z "${CASTAI_API_KEY:-}" ]; then
-    local opencode_cfg="$HOME/.config/opencode/opencode.json"
-    if [ -f "$opencode_cfg" ]; then
-      CASTAI_API_KEY=$(python3 -c "
-import json
-try:
-    with open('$opencode_cfg') as f:
-        config = json.load(f)
-    env = config.get('mcp', {}).get('castai', {}).get('environment', {})
-    print(env.get('CASTAI_API_KEY', ''))
-except:
-    pass
-" 2>/dev/null)
-      export CASTAI_API_KEY
-    fi
-  fi
-
   "$VERIFIER_BIN" verify --riddle "$riddle" --namespace "$ns" --format json 2>/dev/null
 }

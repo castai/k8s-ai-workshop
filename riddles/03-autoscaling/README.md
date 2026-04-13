@@ -1,110 +1,113 @@
-# Riddle 3: Resource Right-Sizing
+# Riddle 3: The Slow Burn
 
 **Duration**: 30 minutes
 **Difficulty**: Intermediate
+**Goal**: Observe a workload that degrades over time, diagnose the pattern, and apply a correct fix with proper headroom
 
-## Riddle Overview
+## Overview
 
-A data processing workload has been deployed with memory limits set too low. The pods run normally for about 1 minute (~60Mi usage), then ramp up to a steady state of ~120Mi when processing workloads — exceeding the 100Mi limit and getting OOMKilled. This cycle repeats every restart. Your task is to diagnose the issue and figure out the correct resource configuration.
+A data processing workload (`stress-app`) is deployed and appears healthy at first. Pods show Running/Ready. But after about 60 seconds, they start OOMKilling and restarting. The cycle repeats: run fine for a minute, crash, restart.
 
-## Problem Statement
+This isn't a broken config that fails immediately — it's a **time-bomb**. The workload has usage phases: low memory initially, then ramps to a steady state that exceeds the configured limit. Your mission is to observe the pattern, understand why it happens, and apply a fix with proper headroom.
 
-The `stress-app` deployment keeps crashing. Pods start, run normally for ~1 minute, then get killed by the kernel's OOM killer when they reach steady-state processing. The current resource configuration:
+## The Problem
 
-- Memory request: 64Mi (too low)
-- Memory limit: 100Mi (too low — workload needs ~120Mi for steady state)
-- 2 replicas, both affected
+The `stress-app` deployment:
+- **Memory request**: 64Mi (too low)
+- **Memory limit**: 100Mi (too low for steady state)
+- **2 replicas**, both affected
 
-**Your task: Diagnose the OOMKill issue and fix the resource configuration so the workload runs stably.**
+### Usage pattern
+| Phase | Duration | Memory | Status |
+|-------|----------|--------|--------|
+| 1. Initial processing | ~60s | ~60Mi | Running fine |
+| 2. Ramp up | ~30s | 60Mi → 120Mi | Climbing... |
+| 3. Steady state | ongoing | ~120Mi | Exceeds 100Mi limit → **OOMKilled** |
+
+The limit (100Mi) is fine for phase 1 but too low for the steady state. The kernel's OOM killer terminates the container (exit code 137) when it exceeds the limit.
 
 ## Setup
 
 ```bash
-cd riddles/03-workload-autoscaling
+cd riddles/03-autoscaling
 ./setup.sh
 ```
 
-## Initial State
+## Diagnosis
+
+### Step 1: Notice the restarts
 
 ```bash
-$ kubectl get pods -n riddle-3
-NAME                          READY   STATUS      RESTARTS   AGE
-stress-app-xxx                1/1     Running     2          3m
-stress-app-yyy                0/1     OOMKilled   3          3m
+kubectl get pods -n riddle-3 -w
 ```
 
-Pods run for ~1 minute, then OOMKill, then restart — repeating continuously.
+Pods will show increasing restart counts. They cycle between Running and OOMKilled.
 
-## Diagnosis Steps
-
-### Step 1: Check Pod Status
+### Step 2: Confirm OOMKill
 
 ```bash
-kubectl get pods -n riddle-3
-```
-
-Look for `OOMKilled` status and high restart counts.
-
-### Step 2: Inspect the OOMKill
-
-```bash
-# Describe a pod to see termination reason
 kubectl describe pod -l app=stress-app -n riddle-3
-
-# Look for:
-#   Last State:     Terminated
-#     Reason:       OOMKilled
-#     Exit Code:    137
 ```
 
-### Step 3: Check Events
-
-```bash
-kubectl get events -n riddle-3 --sort-by='.lastTimestamp'
+Look for:
+```
+Last State:     Terminated
+  Reason:       OOMKilled
+  Exit Code:    137
 ```
 
-### Step 4: Examine Current Resource Configuration
-
-```bash
-kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
-```
-
-You'll see:
-```yaml
-resources:
-  requests:
-    cpu: 50m
-    memory: 64Mi
-  limits:
-    cpu: 200m
-    memory: 100Mi  # This is the problem!
-```
-
-### Step 5: Check Actual Resource Usage
+### Step 3: Observe memory over time
 
 ```bash
 kubectl top pods -n riddle-3
 ```
 
-You'll see memory at ~60Mi during initial operation. After ~90 seconds, the workload ramps up to ~120Mi steady state and gets killed.
+Run this multiple times over 1-2 minutes. You'll see memory start at ~60Mi, then climb toward the limit.
 
-## Key Questions
+### Step 4: Check current config
 
-1. What does `OOMKilled` mean and why does it happen?
-2. What is the relationship between memory requests, limits, and actual usage?
-3. How can you determine the right memory values for a workload?
-4. How would you automate resource right-sizing so you don't have to guess?
+```bash
+kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
+```
+
+## The Fix
+
+**Memory request** should be >= the steady-state usage (~120Mi).
+
+**Memory limit** should be the steady-state usage + 30% headroom (~150-160Mi). Setting it to exactly 120Mi would leave zero margin for variance.
+
+```bash
+kubectl patch deployment stress-app -n riddle-3 --type=json -p='[
+  {"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/memory","value":"128Mi"},
+  {"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/memory","value":"160Mi"}
+]'
+```
+
+Then watch for stability:
+```bash
+kubectl get pods -n riddle-3 -w
+```
+
+Wait 2-3 minutes to confirm no more OOMKills.
 
 ## Success Criteria
 
-- No OOMKilled pods
-- All replicas running stably
-- Resource requests and limits set appropriately for the workload
+| Check | Points | Description |
+|-------|--------|-------------|
+| 1 | 300 | No OOMKilled pods + all pods running and ready |
+| 2 | — | (included in check 1) |
+| 3 | 100 | No recent OOMKill terminations |
+| 4 | 200 | Memory request >= 120Mi |
+| 5 | 400 | Memory limit >= 150Mi (proper headroom bonus) |
 
-## Next Steps
+**Max score: 1000 points**
 
-Once complete, move to [Riddle 3: End-to-End Optimization](../05-riddle/)
+The 400-point bonus rewards setting the limit with proper headroom rather than just barely above 120Mi. In production, tight limits cause intermittent OOMKills from memory variance.
 
----
+## Tips
 
-**Estimated Time**: 30 minutes
+1. **Don't rush the diagnosis** — the point is to observe the time-based pattern
+2. **Run `kubectl top` multiple times** — once isn't enough to see the ramp
+3. **Exit code 137 = SIGKILL** from the OOM killer
+4. **Requests affect scheduling, limits affect stability** — both must be set correctly
+5. **Watch for at least 2 minutes after fixing** — you need to see the workload survive past the phase-2 ramp

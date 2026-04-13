@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Riddle 2: Autoscaler & Rebalancing - Verification Script
+# Riddle 2: Scaling Under Pressure - Verification Script
 
 set +e
 
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common/lib.sh"
 
 echo "=================================================="
-echo "  Riddle 2: Autoscaler & Rebalancing - Verification"
+echo "  Riddle 2: Scaling Under Pressure - Verification"
 echo "=================================================="
 echo ""
 
@@ -20,59 +20,37 @@ if ! kubectl get namespace riddle-2 &>/dev/null; then
     exit 1
 fi
 
-# Run Go verifier (lib.sh exports CASTAI_API_KEY from OpenCode config)
+# Run Go verifier
 RESULT=$(run_verifier 2 riddle-2)
 if [ -z "$RESULT" ]; then
     echo -e "${RED}Verifier returned no output. Is your kubeconfig configured?${NC}"
     exit 1
 fi
 
-# Parse check results into arrays
-STEP1_TOTAL=4
-STEP2_TOTAL=1
-TOTAL=$((STEP1_TOTAL + STEP2_TOTAL))
-PASS=0
-
-# Extract all check results
-readarray -t NAMES < <(echo "$RESULT" | python3 -c "
-import sys, json
-for c in json.load(sys.stdin)['checks']:
-    print(c['name'])
-")
-readarray -t PASSED < <(echo "$RESULT" | python3 -c "
-import sys, json
-for c in json.load(sys.stdin)['checks']:
-    print(c['passed'])
-")
-
-# Step 1: Autoscaling checks (first 4)
-echo -e "${BLUE}Step 1: Autoscaling${NC}"
+echo "Running checks..."
 echo ""
 
-STEP1_PASS=0
-for i in 0 1 2 3; do
-    n=$((i + 1))
-    if [ "${PASSED[$i]}" = "True" ]; then
-        echo -e "  Check $n/$STEP1_TOTAL: ${GREEN}PASS${NC} - ${NAMES[$i]}"
-        STEP1_PASS=$((STEP1_PASS + 1))
+# Parse and display each check
+TOTAL=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['total_checks'])")
+PASS=0
+i=0
+while IFS= read -r check_json; do
+    i=$((i + 1))
+    name=$(echo "$check_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")
+    passed=$(echo "$check_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['passed'])")
+    if [ "$passed" = "True" ]; then
+        echo -e "  Check $i/$TOTAL: ${GREEN}PASS${NC} - $name"
         PASS=$((PASS + 1))
     else
-        echo -e "  Check $n/$STEP1_TOTAL: ${RED}FAIL${NC} - ${NAMES[$i]}"
+        echo -e "  Check $i/$TOTAL: ${RED}FAIL${NC} - $name"
     fi
-done
+done < <(echo "$RESULT" | python3 -c "
+import sys, json
+for c in json.load(sys.stdin)['checks']:
+    print(json.dumps(c))
+")
 
-echo ""
-
-# Step 2: Rebalancing check (check 5)
-echo -e "${BLUE}Step 2: Rebalancing${NC}"
-echo ""
-
-if [ "${PASSED[4]}" = "True" ]; then
-    echo -e "  Check 5/$TOTAL: ${GREEN}PASS${NC} - ${NAMES[4]}"
-    PASS=$((PASS + 1))
-else
-    echo -e "  Check 5/$TOTAL: ${RED}FAIL${NC} - ${NAMES[4]}"
-fi
+FAIL=$((TOTAL - PASS))
 
 echo ""
 echo "=================================================="
@@ -81,31 +59,24 @@ echo "=================================================="
 echo ""
 
 if [ "$PASS" -eq "$TOTAL" ]; then
-    echo -e "${GREEN}Riddle complete! Autoscaling and rebalancing both succeeded.${NC}"
+    echo -e "${GREEN}Riddle complete! All scaling infrastructure is configured.${NC}"
     echo ""
     echo "Summary:"
-    echo "  - All persistent services are running and healthy"
-    echo "  - Batch jobs completed, freeing up cluster capacity"
-    echo "  - CAST AI rebalanced the cluster to remove excess nodes"
+    echo "  - HPAs configured for web-frontend and order-service"
+    echo "  - PodDisruptionBudgets protect availability during scaling"
+    echo "  - Replicas distributed across nodes for resilience"
+    echo ""
+    echo "Next: Move to Riddle 3: cd ../03-autoscaling"
     echo ""
     exit 0
-elif [ "$STEP1_PASS" -eq "$STEP1_TOTAL" ]; then
-    echo -e "${GREEN}Step 1 complete!${NC} All pods are running."
-    echo ""
-    echo -e "${YELLOW}Step 2 remaining:${NC} Rebalancing checks not yet passing."
-    echo ""
-    echo "Next steps:"
-    echo "  1. Trigger rebalancing via CAST AI MCP"
-    echo "  2. Wait for rebalancing to complete, then re-run ./verify.sh"
-    echo ""
-    exit 1
 else
-    STEP1_FAIL=$((STEP1_TOTAL - STEP1_PASS))
-    echo -e "${RED}Step 1: $STEP1_FAIL check(s) still failing.${NC}"
+    echo -e "${RED}$FAIL check(s) still failing.${NC}"
     echo ""
     echo "Hints:"
-    echo "  - Use CAST AI MCP to enable the autoscaler"
-    echo "  - Ask: 'Enable autoscaler for my cluster to handle pending pods'"
+    echo "  - Check HPAs:      kubectl get hpa -n riddle-2"
+    echo "  - Check PDBs:      kubectl get pdb -n riddle-2"
+    echo "  - Check pods:      kubectl get pods -n riddle-2 -o wide"
+    echo "  - Check load:      kubectl top pods -n riddle-2"
     echo ""
     exit 1
 fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Riddle 2: Autoscaler & Rebalancing - Setup Script
-# Deploys over-provisioned microservices that exceed 2-node capacity
+# Riddle 2: Scaling Under Pressure - Setup Script
+# Deploys services that work fine at low traffic, then hits them with load
 
 set -e
 
@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common/lib.sh"
 
 echo "=================================================="
-echo "  Riddle 2: Autoscaler & Rebalancing - Setup"
+echo "  Riddle 2: Scaling Under Pressure - Setup"
 echo "=================================================="
 echo ""
 
@@ -22,26 +22,13 @@ if ! kubectl cluster-info &>/dev/null; then
     exit 1
 fi
 
-# Check CAST AI prerequisite
-echo -e "${YELLOW}Checking CAST AI prerequisite...${NC}"
-echo ""
-echo "This riddle requires CAST AI to be fully set up:"
-echo "  - CAST AI API key configured in OpenCode"
-echo "  - Cluster onboarded to CAST AI console (Phase 1 + Phase 2)"
-echo ""
-echo "If you haven't set this up yet, press Ctrl+C and follow these steps:"
-echo ""
-echo -e "  ${YELLOW}1. Create API Key and Configure OpenCode:${NC}"
-echo -e "     ${BLUE}$SCRIPT_DIR/../common/setup-opencode.sh --with-castai${NC}"
-echo "     (go to https://console.cast.ai -> API Access -> Create User API Key)"
-echo ""
-echo -e "  ${YELLOW}2. Onboard your cluster to CAST AI console:${NC}"
-echo "     - Go to https://console.cast.ai -> Click 'Connect cluster' -> Select EKS"
-echo "     - Copy the read-only onboarding script and run it locally, wait for it to complete"
-echo "     - Click the green 'Enable CAST AI' button, copy the full onboarding script and run it locally"
-echo "     - Wait for it to finish - your cluster should appear in the console"
-echo ""
-read -p "Press ENTER to continue if CAST AI is fully configured, or Ctrl+C to abort... "
+# Check metrics-server (required for HPA)
+if ! kubectl get apiservice v1beta1.metrics.k8s.io &>/dev/null 2>&1; then
+    echo -e "${YELLOW}metrics-server is not installed. Installing monitoring stack...${NC}"
+    "$SCRIPT_DIR/../../setup/install-monitoring.sh"
+    echo -e "${GREEN}metrics-server is working${NC}"
+    echo ""
+fi
 
 # Clean up if namespace already exists
 if kubectl get namespace riddle-2 &>/dev/null; then
@@ -60,105 +47,40 @@ echo -e "${BLUE}[1/3]${NC} Creating namespace..."
 kubectl apply -f "$SCRIPT_DIR/broken/00-namespace.yaml"
 sleep 2
 
-# Step 2: Deploy persistent microservices
-echo -e "${BLUE}[2/3]${NC} Deploying persistent microservices..."
+# Step 2: Deploy services
+echo -e "${BLUE}[2/3]${NC} Deploying e-commerce services..."
 kubectl apply -f "$SCRIPT_DIR/broken/01-workloads.yaml"
 
-# Step 3: Deploy temporary jobs (heavy, complete after ~60s)
-echo -e "${BLUE}[3/3]${NC} Deploying temporary batch jobs (data migration, index rebuild, cache warmup)..."
-kubectl apply -f "$SCRIPT_DIR/broken/02-jobs.yaml"
+echo "  Waiting for services to start..."
+kubectl wait --for=condition=ready pod -l tier -n riddle-2 --timeout=90s 2>/dev/null || true
+sleep 3
+
+# Step 3: Deploy load generator (starts driving traffic immediately)
+echo -e "${BLUE}[3/3]${NC} Deploying load generator..."
+kubectl apply -f "$SCRIPT_DIR/broken/02-load-generator.yaml"
 
 echo ""
-echo "Waiting for pods to settle..."
+echo "Waiting for load to ramp up..."
 sleep 10
-
-# Step 4: Configure progress-reconciler with CAST AI API key
-echo ""
-echo -e "${BLUE}[4/4]${NC} Configuring progress-reconciler with CAST AI API key..."
-OPENCODE_CONFIG="$HOME/.config/opencode/opencode.json"
-CASTAI_API_KEY=""
-
-if [ -f "$OPENCODE_CONFIG" ]; then
-    CASTAI_API_KEY=$(python3 -c "
-import json, sys
-try:
-    with open('$OPENCODE_CONFIG') as f:
-        config = json.load(f)
-    env = config.get('mcp', {}).get('castai', {}).get('environment', {})
-    print(env.get('CASTAI_API_KEY', ''))
-except:
-    pass
-" 2>/dev/null)
-fi
-
-if [ -n "$CASTAI_API_KEY" ] && [ "$CASTAI_API_KEY" != "REPLACE_WITH_YOUR_CASTAI_API_KEY" ]; then
-    echo -e "${GREEN}✓ Found CAST AI API key in OpenCode config${NC}"
-
-    # Create or update secret in progress-reconciler namespace
-    if kubectl get namespace progress-reconciler &>/dev/null; then
-        kubectl create secret generic castai-credentials \
-            --from-literal=api-key="$CASTAI_API_KEY" \
-            -n progress-reconciler \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-        echo -e "${GREEN}✓ Updated CAST AI credentials in progress-reconciler namespace${NC}"
-
-        # Patch deployment to add CASTAI_API_KEY environment variable (skip if already set)
-        EXISTING_ENV=$(kubectl get deployment progress-reconciler -n progress-reconciler \
-            -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CASTAI_API_KEY")].name}' 2>/dev/null)
-        if [ -z "$EXISTING_ENV" ]; then
-            kubectl patch deployment progress-reconciler -n progress-reconciler --type=json -p='[
-              {
-                "op": "add",
-                "path": "/spec/template/spec/containers/0/env/-",
-                "value": {
-                  "name": "CASTAI_API_KEY",
-                  "valueFrom": {
-                    "secretKeyRef": {
-                      "name": "castai-credentials",
-                      "key": "api-key",
-                      "optional": true
-                    }
-                  }
-                }
-              }
-            ]' 2>/dev/null || echo -e "${YELLOW}  (patch failed, env var may need manual setup)${NC}"
-        else
-            echo -e "${GREEN}✓ CASTAI_API_KEY env var already configured${NC}"
-        fi
-
-        echo -e "${GREEN}✓ Configured deployment to use CAST AI credentials${NC}"
-        echo -e "${GREEN}✓ Deployment will restart automatically with new configuration${NC}"
-    else
-        echo -e "${YELLOW}⚠ progress-reconciler namespace not found - skipping credential setup${NC}"
-        echo -e "${YELLOW}  Deploy progress-reconciler first, then re-run this setup${NC}"
-    fi
-else
-    echo -e "${YELLOW}⚠ CAST AI API key not found in OpenCode config${NC}"
-    echo -e "${YELLOW}  Run: ../common/setup-opencode.sh --with-castai${NC}"
-    echo -e "${YELLOW}  Progress reconciler won't be able to verify rebalancing completion${NC}"
-fi
 
 # Write AGENTS.md to auto-load the right skill for this riddle
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cat > "$REPO_ROOT/AGENTS.md" << 'AGENTS_EOF'
 # Workshop Instructions
 
-You are helping fix a capacity-starved Kubernetes cluster in the `riddle-2` namespace. Pods are stuck in Pending because the cluster doesn't have enough nodes.
+You are helping configure autoscaling for an e-commerce platform in the `riddle-2` namespace that is under heavy load.
 
-**IMPORTANT**: Before starting, load the `k8s-autoscale-rebalance` skill. This skill guides you through using CAST AI to autoscale the cluster, then rebalance after temporary jobs complete.
+**IMPORTANT**: Before starting, load the `k8s-scaling-under-pressure` skill. This skill guides you through configuring HPAs, right-sizing resource requests, and adding resilience to your deployments.
 
-Load it by calling the skill tool with name "k8s-autoscale-rebalance".
+Load it by calling the skill tool with name "k8s-scaling-under-pressure".
 
-You have two MCP servers: `kubernetes` (kubectl) and `castai` (CAST AI platform). Use both.
-
-The target namespace is `riddle-2`. There are persistent Deployments and temporary batch Jobs. The Jobs complete after ~60 seconds.
+The target namespace is `riddle-2`. The services are running but struggling under load — there is no autoscaling configured. A load generator is driving continuous traffic to web-frontend and order-service.
 AGENTS_EOF
-echo -e "${GREEN}Configured AGENTS.md for Riddle 2 (k8s-autoscale-rebalance skill)${NC}"
+echo -e "${GREEN}Configured AGENTS.md for Riddle 2 (k8s-scaling-under-pressure skill)${NC}"
 
 echo ""
 echo "=================================================="
-echo -e "${YELLOW}  Setup Complete - Pods are PENDING${NC}"
+echo -e "${YELLOW}  Setup Complete - Services Under Load${NC}"
 echo "=================================================="
 echo ""
 
@@ -166,21 +88,15 @@ echo -e "${BLUE}Current state:${NC}"
 echo ""
 kubectl get pods -n riddle-2 -o wide 2>/dev/null || true
 echo ""
-
-PENDING=$(kubectl get pods -n riddle-2 --field-selector=status.phase=Pending --no-headers 2>/dev/null | wc -l | tr -d ' ')
-RUNNING=$(kubectl get pods -n riddle-2 --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | tr -d ' ')
-
-echo -e "${RED}Pending pods: $PENDING${NC}"
-echo -e "${GREEN}Running pods: $RUNNING${NC}"
-echo ""
-echo -e "${YELLOW}The cluster doesn't have enough capacity for all pods.${NC}"
-echo -e "${YELLOW}Batch jobs + microservices together need ~24 CPU - way more than 2 nodes can handle.${NC}"
+echo -e "${YELLOW}Services are running but the load generator is driving CPU high.${NC}"
+echo -e "${YELLOW}There are no HPAs, no PDBs, and no topology spread configured.${NC}"
 echo ""
 echo "Your mission:"
-echo "  Step 1: Use OpenCode to enable the autoscaler and fix pending pods"
-echo "  Step 2: Wait for batch jobs to complete (~60 seconds after scheduling)"
-echo "          The cluster will then have excess nodes with very little running"
-echo "  Step 3: Use OpenCode to rebalance the cluster and optimize costs"
+echo "  1. Observe the load with kubectl top pods -n riddle-2"
+echo "  2. Right-size CPU requests so HPA can calculate correctly"
+echo "  3. Create HPAs for web-frontend and order-service"
+echo "  4. Add PodDisruptionBudgets for safe scaling"
+echo "  5. Add topology spread so replicas distribute across nodes"
 echo ""
 echo "Start investigating with OpenCode:"
 echo "  opencode"
@@ -189,9 +105,9 @@ echo -e "${YELLOW}NOTE: If OpenCode is already running, restart it (q then openc
 echo -e "${YELLOW}so it picks up the riddle skill automatically.${NC}"
 echo ""
 echo "Or use kubectl directly:"
-echo "  kubectl get pods -n riddle-2"
-echo "  kubectl get events -n riddle-2 --field-selector reason=FailedScheduling"
+echo "  kubectl top pods -n riddle-2"
+echo "  kubectl get hpa -n riddle-2"
 echo ""
-echo "When you think everything is fixed:"
+echo "When you think everything is configured:"
 echo "  ./verify.sh"
 echo ""

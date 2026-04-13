@@ -1,20 +1,11 @@
 #!/usr/bin/env bash
 
 # Configure OpenCode MCP servers and skills
-# Can be run standalone or called from kimchi-cli-bootstrap.sh
 
 set -e
 
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-
-# Parse flags
-WITH_CASTAI=false
-for arg in "$@"; do
-    case "$arg" in
-        --with-castai) WITH_CASTAI=true ;;
-    esac
-done
 
 # Register participant name in the Loveable dashboard (once, tracked via state file).
 if ! state_done "participant-registered"; then
@@ -40,49 +31,9 @@ else
 fi
 
 echo "=================================================="
-echo "  OpenCode + CAST AI Setup"
+echo "  OpenCode Setup"
 echo "=================================================="
 echo ""
-
-CASTAI_API_KEY="${CASTAI_API_KEY:-}"
-if [ "$WITH_CASTAI" = true ] && [ -z "$CASTAI_API_KEY" ]; then
-    # Prompt for CAST AI API key (for cluster management MCP)
-    echo -e "${YELLOW}CAST AI API Key${NC}"
-    echo "This key is used for the CAST AI MCP server (cluster management)."
-    echo "Get one from: https://console.cast.ai/user/api-access -> Create access key"
-    echo ""
-
-    # Check if already configured
-    EXISTING_KEY=""
-    OPENCODE_CONFIG="$HOME/.config/opencode/opencode.json"
-    if [ -f "$OPENCODE_CONFIG" ]; then
-        EXISTING_KEY=$(python3 -c "
-import json
-try:
-    with open('$OPENCODE_CONFIG') as f:
-        config = json.load(f)
-    print(config.get('mcp', {}).get('castai', {}).get('environment', {}).get('CASTAI_API_KEY', ''))
-except:
-    pass
-" 2>/dev/null || true)
-    fi
-
-    if [ -n "$EXISTING_KEY" ]; then
-        echo -e "Current key: ${BLUE}${EXISTING_KEY:0:8}...${NC}"
-        read -r -p "Press ENTER to keep it, or paste a new key: " CASTAI_API_KEY
-        if [ -z "$CASTAI_API_KEY" ]; then
-            CASTAI_API_KEY="$EXISTING_KEY"
-        fi
-    else
-        read -r -p "Enter your CAST AI API key: " CASTAI_API_KEY
-        if [ -z "$CASTAI_API_KEY" ]; then
-            echo -e "${YELLOW}No key entered. CAST AI MCP will not work without it.${NC}"
-            echo -e "${YELLOW}You can re-run this script later to add it.${NC}"
-            CASTAI_API_KEY="REPLACE_WITH_YOUR_CASTAI_API_KEY"
-        fi
-    fi
-    echo ""
-fi
 
 # Create config directory
 OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
@@ -105,19 +56,6 @@ if [ "$IS_UBUNTU" = false ]; then
         }'
 fi
 
-# Build castai MCP block conditionally
-CASTAI_MCP_BLOCK=""
-if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_API_KEY" ]; then
-    CASTAI_MCP_BLOCK=',
-    "castai": {
-      "type": "local",
-      "command": ["npx", "-y", "castai-mcp-server@latest"],
-      "environment": {
-        "CASTAI_API_KEY": "'"$CASTAI_API_KEY"'"
-      }
-    }'
-fi
-
 # Write OpenCode config
 cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
 {
@@ -131,7 +69,7 @@ cat > "$OPENCODE_CONFIG_DIR/opencode.json" << OPENCODE_EOF
     "kubernetes": {
       "type": "local",
       "command": ["npx", "-y", "kubernetes-mcp-server@latest"]$KUBERNETES_MCP_ENV
-    }$CASTAI_MCP_BLOCK
+    }
   }
 }
 OPENCODE_EOF
@@ -150,11 +88,7 @@ fi
 
 echo -e "${GREEN}OpenCode configured successfully!${NC}"
 echo ""
-if [ "$WITH_CASTAI" = true ] && [ -n "$CASTAI_API_KEY" ]; then
-    echo "  MCP:      kubernetes + castai"
-else
-    echo "  MCP:      kubernetes"
-fi
+echo "  MCP:      kubernetes"
 echo "  Config:   $OPENCODE_CONFIG_DIR/opencode.json"
 if [ -d "$SKILLS_SRC" ]; then
     echo "  Skills:   $(ls "$SKILLS_SRC" | tr '\n' ' ')"

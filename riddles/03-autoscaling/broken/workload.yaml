@@ -4,7 +4,7 @@
 #   - Phase 1: runs at 60Mi for 60s (normal)
 #   - Phase 2: ramps to 120Mi for 30s (transition)
 #   - Phase 3: steady state at 120Mi → OOMKilled
-# After WOOP adjusts resources to 120Mi+, workload becomes stable
+# Fix: set memory request >= 120Mi and limit >= 150Mi (with headroom)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

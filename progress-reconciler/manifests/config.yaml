@@ -24,11 +24,11 @@ data:
       - riddle_id: "24e96064-68d7-4bf9-b222-af29fe2306be"
         namespace: "riddle-2"
         enabled: true
-        description: "Autoscaler & Rebalancing"
+        description: "Scaling Under Pressure"
         total_checks: 5
 
       - riddle_id: "7d7c5ea7-9b3d-4890-ac40-c79b8f30c778"
         namespace: "riddle-3"
         enabled: true
-        description: "Resource Right-Sizing"
+        description: "The Slow Burn"
         total_checks: 5

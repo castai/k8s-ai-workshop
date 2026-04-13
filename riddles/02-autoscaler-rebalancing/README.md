@@ -1,50 +1,32 @@
-# Riddle 2: Autoscaler & Rebalancing
+# Riddle 2: Scaling Under Pressure
 
 **Duration**: 30-45 minutes
 **Difficulty**: Intermediate
-**Goal**: Enable CAST AI autoscaler to fix pending pods, then rebalance the cluster after batch jobs complete
+**Goal**: Configure horizontal pod autoscaling and resilience for services under load
 
 ## Overview
 
-Your cluster is running a small e-commerce platform alongside heavy batch jobs (data migration, index rebuild, cache warmup). The combined workloads exceed the cluster's capacity - several pods are stuck in `Pending` state.
+An e-commerce platform is deployed with three services: `web-frontend`, `order-service`, and `notification-service`. Everything runs fine at low traffic. Then a load generator starts driving continuous requests to the frontend and order service.
 
-Here's the twist: the batch jobs only run for about 60 seconds. Once they complete, the cluster will have far more nodes than needed for the remaining microservices, creating significant waste.
+The services are struggling — CPU usage is high, response times are degrading. But there's nothing broken. The problem is that nobody configured autoscaling, resource requests are unrealistically low, there are no PodDisruptionBudgets, and replicas aren't spread across nodes.
 
-Your mission:
-
-1. **Fix pending pods** - Enable the CAST AI autoscaler so new nodes are added and all pods can run
-2. **Wait for batch jobs to complete** - After ~60 seconds the jobs finish, leaving excess nodes
-3. **Optimize costs** - Trigger CAST AI rebalancing to consolidate onto fewer nodes
+Your mission: **build the scaling and resilience infrastructure** that should have been there from the start.
 
 ## The Problem
 
-The cluster currently has **2 worker nodes**, but the deployed workloads request more resources than 2 nodes can provide.
+### What's deployed
+| Service | Replicas | CPU Request | Image |
+|---------|----------|------------|-------|
+| web-frontend | 1 | 10m | registry.k8s.io/hpa-example |
+| order-service | 1 | 10m | registry.k8s.io/hpa-example |
+| notification-service | 1 | 50m | nginx:1.27-alpine |
+| load-generator | 1 | — | busybox (wget loop) |
 
-### Persistent Workloads (stay running)
-
-| Workload | Replicas | CPU request | Memory request |
-|----------|----------|------------|----------------|
-| web-frontend | 2 | 200m | 256Mi |
-| order-service | 2 | 200m | 256Mi |
-| notification-service | 1 | 100m | 128Mi |
-
-**Persistent total**: ~1 CPU / ~1.2Gi - fits on 2 nodes easily.
-
-### Temporary Batch Jobs (complete after ~60s)
-
-| Job | Pods | CPU request | Memory request |
-|-----|------|------------|----------------|
-| data-migration | 3 | 3 CPU | 3Gi |
-| index-rebuild | 3 | 3 CPU | 3Gi |
-| cache-warmup | 2 | 2.5 CPU | 2Gi |
-
-**Temporary total**: ~23 CPU / ~22Gi - forces autoscaler to add 4+ extra nodes.
-
-**Combined total**: ~24 CPU - way more than 2 nodes can handle.
-
-### Why Rebalancing Saves Money
-
-After the autoscaler adds nodes and the batch jobs complete (~60s), the cluster will have 5-6 nodes but only need 2 for the remaining microservices. That's 3-4 nodes sitting nearly empty, wasting money. Rebalancing consolidates the persistent workloads onto fewer nodes and removes the excess.
+### What's missing
+1. **No HPAs** — services can't scale with demand
+2. **CPU requests are wrong** — 10m is far below actual usage (~200-400m under load), making HPA percentage math useless
+3. **No PodDisruptionBudgets** — scaling down could kill all replicas simultaneously
+4. **No topology spread** — after HPA scales up, all replicas land on one node
 
 ## Setup
 
@@ -53,94 +35,79 @@ cd riddles/02-autoscaler-rebalancing
 ./setup.sh
 ```
 
-This deploys:
-- Namespace `riddle-2` with 3 microservices + 3 batch jobs (13 total pods)
-- PodDisruptionBudgets for safe rebalancing
-- Total resource requests exceeding 2-node capacity -> pending pods
-
-## Step 1: Fix Pending Pods
-
-### Observe the Problem
+## Step 1: Observe the Load
 
 ```bash
-kubectl get pods -n riddle-2
-# Several pods will show "Pending"
+kubectl top pods -n riddle-2
+# web-frontend and order-service will show high CPU
 
-kubectl get events -n riddle-2 --field-selector reason=FailedScheduling
-# Shows "Insufficient cpu" / "Insufficient memory"
+kubectl get hpa -n riddle-2
+# No HPAs exist
 ```
 
-### Use CAST AI MCP to Enable Autoscaler
+## Step 2: Right-Size Resource Requests
 
-Talk to Claude with CAST AI MCP tools:
+The CPU request on web-frontend and order-service is `10m`. Under load, actual usage is `200-400m`. HPA calculates utilization as `current / request` — with a 10m request and 300m usage, that's 3000% utilization. The HPA would try to create dozens of replicas.
 
-```
-"Enable the autoscaler for my cluster so that pending pods in riddle-2 can be scheduled"
+Set CPU requests to a realistic value (e.g., `200m`) so HPA targets work correctly.
 
-"What nodes would CAST AI add to handle the pending pods?"
-
-"Check if all pods in riddle-2 are now running"
-```
-
-### Verify Step 1
+## Step 3: Create HPAs
 
 ```bash
-./verify.sh
-# All 4 Step 1 checks should pass (no pending pods, all deployments ready)
+kubectl autoscale deployment web-frontend -n riddle-2 --cpu-percent=50 --min=1 --max=5
+kubectl autoscale deployment order-service -n riddle-2 --cpu-percent=50 --min=1 --max=5
 ```
 
-## Step 2: Wait for Batch Jobs to Complete
-
-After the autoscaler adds nodes, wait about 60 seconds for the batch jobs to finish:
-
+Watch the HPAs scale:
 ```bash
-# Watch jobs complete
-kubectl get jobs -n riddle-2 -w
-
-# After jobs complete, check node utilization - lots of waste!
-kubectl get nodes
-kubectl top nodes
+kubectl get hpa -n riddle-2 -w
 ```
 
-## Step 3: Optimize Costs with Rebalancing
+## Step 4: Add PodDisruptionBudgets
 
-Now the cluster has excess nodes running nearly empty. Use CAST AI to fix this:
+Create PDBs so that scaling down (or node maintenance) doesn't kill all replicas at once:
 
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-frontend-pdb
+  namespace: riddle-2
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web-frontend
 ```
-"Analyze the cluster for cost optimization opportunities"
 
-"What savings can rebalancing achieve for my cluster?"
+## Step 5: Spread Replicas Across Nodes
 
-"Trigger a rebalancing plan - I want to minimize costs while keeping all workloads running"
+After HPA scales up web-frontend, all replicas may land on one node. Add topology spread constraints to distribute them:
 
-"Show me the rebalancing progress"
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: web-frontend
 ```
-
-CAST AI rebalancing will:
-- Consolidate persistent workloads onto fewer nodes
-- Remove the excess empty nodes left after batch jobs completed
-- Right-size the remaining nodes for the actual workload
 
 ## Success Criteria
 
 | Check | Description |
 |-------|-------------|
-| 1 | All deployments have desired replicas ready |
-| 2 | No pods in Pending state |
-| 3 | No pods in error states |
-| 4 | All deployment pods fully Ready |
-| 5 | CAST AI rebalancing completed successfully |
+| 1 | HPA exists for web-frontend and has scaled to >= 2 replicas |
+| 2 | HPA exists for order-service and has scaled to >= 2 replicas |
+| 3 | All deployments have desired replicas ready |
+| 4 | PodDisruptionBudgets exist (at least 2) |
+| 5 | web-frontend replicas spread across multiple nodes |
 
 ## Tips
 
-1. **Start with `kubectl get pods -n riddle-2`** to see the pending pods
-2. **Use CAST AI MCP** to enable autoscaler - don't try to manually add nodes
-3. **Wait for jobs to complete** before triggering rebalancing - that's when the waste appears
-4. **Rebalancing takes a few minutes** - CAST AI needs to move workloads and remove old nodes
-5. **PDBs are already configured** - rebalancing can safely evict pods without downtime
-
-## Next Steps
-
-After completing this riddle:
-- Review the cost savings in the CAST AI console
-- Compare node count before and after rebalancing
+1. **Start with `kubectl top pods -n riddle-2`** — see the CPU pressure
+2. **Fix resource requests first** — HPA can't work properly with 10m requests
+3. **Watch HPA with `-w`** — it takes 15-30 seconds for metrics to update
+4. **Don't scale notification-service** — it's lightweight and doesn't need HPA
+5. **Topology spread requires >= 2 replicas** — wait for HPA to scale before checking

@@ -4,4 +4,4 @@ metadata:
   name: riddle-2
   labels:
     workshop: "true"
-    riddle: "02-autoscaler-rebalancing"
+    riddle: "02-scaling-under-pressure"

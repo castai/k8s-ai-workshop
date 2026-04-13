@@ -62,15 +62,7 @@ if [ "$PASS" -eq "$TOTAL" ]; then
     echo -e "${GREEN}All checks passed! Riddle complete.${NC}"
     echo ""
     echo "Next steps:"
-    echo "  1. Set up CAST AI before Riddle 2 (if not done yet):"
-    echo "     a. Create API key and configure OpenCode:"
-    echo "        ./riddles/common/setup-opencode.sh --with-castai"
-    echo "     b. Onboard your cluster to CAST AI console:"
-    echo "        - Go to https://console.cast.ai -> Click 'Connect cluster' -> Select EKS"
-    echo "        - Copy the read-only onboarding script and run it locally"
-    echo "        - Click the green 'Enable CAST AI' button, copy the full onboarding script and run it locally"
-    echo ""
-    echo "  3. Move to Riddle 2: cd ../02-autoscaler-rebalancing"
+    echo "  Move to Riddle 2: cd ../02-autoscaler-rebalancing"
     echo ""
     exit 0
 else

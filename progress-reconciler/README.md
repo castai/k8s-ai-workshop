@@ -207,19 +207,19 @@ POST https://hsnxzbyedgzepraxwpar.supabase.co/functions/v1/report-progress
 
 ### Riddle 2: Autoscaler & Rebalancing (5 checks)
 
-1. ✅ All deployments have desired replicas ready
-2. ✅ No pods in Pending state
-3. ✅ No pods in error states (CrashLoopBackOff, ImagePullBackOff, etc.)
-4. ✅ All deployment pods fully Ready (N/N containers ready)
-5. ✅ CAST AI rebalancing completed (checks for finished rebalancing plans via API)
+1. ✅ HPA active for web-frontend (exists and currentReplicas >= 2)
+2. ✅ HPA active for order-service (exists and currentReplicas >= 2)
+3. ✅ All deployments have desired replicas ready
+4. ✅ PodDisruptionBudgets exist (at least 2 in namespace)
+5. ✅ web-frontend replicas spread across multiple nodes
 
-### Riddle 3: Resource Right-Sizing (5 checks)
+### Riddle 3: The Slow Burn (5 checks)
 
 1. ✅ No pods in OOMKilled state
 2. ✅ All pods Running and Ready (N/N containers ready)
 3. ✅ No recent OOMKill terminations (lastState.terminated.reason)
 4. ✅ Memory request >= 120Mi (checked from actual pod spec, not deployment)
-5. ✅ WOOP applied recommendations (CAST AI annotations present)
+5. ✅ Memory limit >= 150Mi (proper headroom bonus)
 
 ## Testing
 
