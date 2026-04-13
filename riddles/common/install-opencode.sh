@@ -23,12 +23,12 @@ if command -v opencode &>/dev/null; then
 fi
 
 echo -e "${YELLOW}OpenCode not found. Installing...${NC}"
-if command -v brew &>/dev/null; then
+if command -v curl &>/dev/null; then
+    curl -fsSL https://opencode.ai/install | bash
+elif command -v brew &>/dev/null; then
     brew install opencode
 elif command -v npm &>/dev/null; then
     npm install -g opencode-ai
-elif command -v curl &>/dev/null; then
-    curl -fsSL https://opencode.ai/install | bash
 else
     echo -e "${RED}Cannot install OpenCode automatically. Please install from https://opencode.ai${NC}"
     exit 1
