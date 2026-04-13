@@ -41,7 +41,38 @@ else
   printf "  ${GREEN}[✓]${NC} Install kimchi CLI (${KIMCHI_VERSION}) ${DIM}(cached)${NC}\n"
 fi
 
-# --- Stage 2: Configure kimchi ---------------------------------------------
+# --- Stage 2: Update shell profile -----------------------------------------
+if ! state_done "shell-profile"; then
+  step "Update shell profile" bash -c '
+    if ! grep -q "CASTAI_API_KEY" ~/.bashrc 2>/dev/null; then
+      cat >> ~/.bashrc << PROFILE
+export CASTAI_API_KEY="'"${CASTAI_API_KEY}"'"
+alias opencode="kimchi opencode"
+PROFILE
+    fi
+  '
+  state_mark "shell-profile"
+else
+  printf "  ${GREEN}[✓]${NC} Update shell profile ${DIM}(cached)${NC}\n"
+fi
+
+# --- Stage 3: Install OpenCode ---------------------------------------------
+if ! state_done "opencode-installed"; then
+  step "Install OpenCode" "$SCRIPT_DIR/install-opencode.sh"
+  state_mark "opencode-installed"
+else
+  printf "  ${GREEN}[✓]${NC} Install OpenCode ${DIM}(cached)${NC}\n"
+fi
+
+# --- Stage 4: Configure OpenCode MCP + skills ------------------------------
+if ! state_done "opencode-configured"; then
+  step "Configure OpenCode (MCP + skills)" "$SCRIPT_DIR/setup-opencode.sh"
+  state_mark "opencode-configured"
+else
+  printf "  ${GREEN}[✓]${NC} Configure OpenCode (MCP + skills) ${DIM}(cached)${NC}\n"
+fi
+
+# --- Stage 5: Configure kimchi (after OpenCode to avoid overwritten values)
 if ! state_done "kimchi-configured"; then
   step "Configure kimchi" bash -c '
     mkdir -p ~/.config/kimchi
@@ -60,37 +91,6 @@ CONF
   state_mark "kimchi-configured"
 else
   printf "  ${GREEN}[✓]${NC} Configure kimchi ${DIM}(cached)${NC}\n"
-fi
-
-# --- Stage 3: Update shell profile -----------------------------------------
-if ! state_done "shell-profile"; then
-  step "Update shell profile" bash -c '
-    if ! grep -q "CASTAI_API_KEY" ~/.bashrc 2>/dev/null; then
-      cat >> ~/.bashrc << PROFILE
-export CASTAI_API_KEY="'"${CASTAI_API_KEY}"'"
-alias opencode="kimchi opencode"
-PROFILE
-    fi
-  '
-  state_mark "shell-profile"
-else
-  printf "  ${GREEN}[✓]${NC} Update shell profile ${DIM}(cached)${NC}\n"
-fi
-
-# --- Stage 4: Install OpenCode ---------------------------------------------
-if ! state_done "opencode-installed"; then
-  step "Install OpenCode" "$SCRIPT_DIR/install-opencode.sh"
-  state_mark "opencode-installed"
-else
-  printf "  ${GREEN}[✓]${NC} Install OpenCode ${DIM}(cached)${NC}\n"
-fi
-
-# --- Stage 5: Configure OpenCode MCP + skills ------------------------------
-if ! state_done "opencode-configured"; then
-  step "Configure OpenCode (MCP + skills)" "$SCRIPT_DIR/setup-opencode.sh"
-  state_mark "opencode-configured"
-else
-  printf "  ${GREEN}[✓]${NC} Configure OpenCode (MCP + skills) ${DIM}(cached)${NC}\n"
 fi
 
 # --- Done ------------------------------------------------------------------
