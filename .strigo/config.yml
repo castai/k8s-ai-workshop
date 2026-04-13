@@ -1,0 +1,18 @@
+---
+classes:
+  - exercises:
+      - file: "../riddles/01-cluster-debugging/README.md"
+        title: "Riddle 1: Advanced Cluster Debugging"
+        syntax: "md"
+      - file: "../riddles/01-cluster-debugging/hints.md"
+        title: "Riddle 1: Hints"
+        syntax: "md"
+      - file: "../riddles/02-scaling-under-pressure/README.md"
+        title: "Riddle 2: Scaling Under Pressure"
+        syntax: "md"
+      - file: "../riddles/03-the-slow-burn/README.md"
+        title: "Riddle 3: The Slow Burn"
+        syntax: "md"
+      - file: "../riddles/common/troubleshooting.md"
+        title: "Troubleshooting Guide"
+        syntax: "md"

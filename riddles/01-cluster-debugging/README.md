@@ -75,4 +75,4 @@ All 10 checks must pass to complete the riddle.
 
 ## Hints
 
-If you get stuck, check [hints.md](hints.md) for progressive hints.
+If you get stuck, check the **"Riddle 1: Hints"** tab in the exercise sidebar for progressive hints.
