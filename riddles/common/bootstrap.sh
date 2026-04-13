@@ -34,7 +34,7 @@ if ! command -v kimchi &>/dev/null || [ "$(kimchi version 2>/dev/null)" != "${KI
     curl -fsSL "https://github.com/castai/kimchi/releases/download/'"${KIMCHI_VERSION}"'/kimchi_${OS}_${ARCH}.tar.gz" \
       | tar -xzf - -C /tmp
     chmod +x /tmp/kimchi
-    mv /tmp/kimchi /usr/local/bin/kimchi
+    sudo mv /tmp/kimchi /usr/local/bin/kimchi
   '
   state_mark "kimchi-installed"
 else
