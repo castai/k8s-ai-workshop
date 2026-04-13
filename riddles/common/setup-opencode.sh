@@ -90,7 +90,11 @@ print(json.dumps(mcp))
 ")
 fi
 
+# Resolve API key: env var > kimchi config file > empty (provider section skipped)
 CASTAI_API_KEY="${KIMCHI_API_KEY:-${CASTAI_API_KEY:-}}"
+if [ -z "$CASTAI_API_KEY" ] && [ -f "$HOME/.config/kimchi/config.json" ]; then
+    CASTAI_API_KEY=$(python3 -c "import json; print(json.load(open('$HOME/.config/kimchi/config.json')).get('api_key',''))" 2>/dev/null || echo "")
+fi
 
 python3 - "$OPENCODE_CONFIG" "$KUBERNETES_MCP" "$CASTAI_API_KEY" << 'PYEOF'
 import json, sys
