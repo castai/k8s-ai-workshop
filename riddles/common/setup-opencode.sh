@@ -164,14 +164,16 @@ with open(config_path, "w") as f:
 PYEOF
 
 # Install skills globally so they are available from any directory
+# Copy files instead of symlinking directories -- kimchi's config copy
+# fails with "copy_file_range: is a directory" on directory symlinks.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$SCRIPT_DIR/../../.opencode/skills"
 SKILLS_DEST="$OPENCODE_CONFIG_DIR/skills"
 if [ -d "$SKILLS_SRC" ]; then
-    mkdir -p "$SKILLS_DEST"
     for skill_dir in "$SKILLS_SRC"/*/; do
         skill_name=$(basename "$skill_dir")
-        ln -sf "$(cd "$skill_dir" && pwd)" "$SKILLS_DEST/$skill_name"
+        mkdir -p "$SKILLS_DEST/$skill_name"
+        cp -f "$skill_dir"* "$SKILLS_DEST/$skill_name/"
     done
 fi
 
