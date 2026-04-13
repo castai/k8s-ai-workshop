@@ -38,5 +38,11 @@ if [ -z "$CASTAI_API_KEY" ]; then
     export CASTAI_API_KEY
 fi
 
-# --- Stage 2: Run bootstrap ------------------------------------------------
+# --- Stage 2: Collect participant name (before bootstrap, which hides prompts)
+if [ -z "${PARTICIPANT_NAME:-}" ]; then
+    read -p "  Enter your name (for the dashboard): " PARTICIPANT_NAME
+    export PARTICIPANT_NAME
+fi
+
+# --- Stage 3: Run bootstrap ------------------------------------------------
 "$SCRIPT_DIR/../common/bootstrap.sh"
