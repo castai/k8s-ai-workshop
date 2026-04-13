@@ -96,6 +96,9 @@ else
   printf "  ${GREEN}[✓]${NC} Configure kimchi ${DIM}(cached)${NC}\n"
 fi
 
+# --- Source bashrc so env vars and alias are available in the current shell --
+source ~/.bashrc 2>/dev/null || true
+
 # --- Done ------------------------------------------------------------------
 echo ""
 echo -e "  ${GREEN}${BOLD}Setup complete!${NC}"
