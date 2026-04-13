@@ -1,6 +1,9 @@
 ---
 classes:
   - exercises:
+      - file: "../riddles/00-getting-started/README.md"
+        title: "Step 0: Getting Started"
+        syntax: "md"
       - file: "../riddles/01-cluster-debugging/README.md"
         title: "Riddle 1: Advanced Cluster Debugging"
         syntax: "md"
