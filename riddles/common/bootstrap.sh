@@ -47,6 +47,9 @@ if ! state_done "shell-profile"; then
     if ! grep -q "CASTAI_API_KEY" ~/.bashrc 2>/dev/null; then
       cat >> ~/.bashrc << PROFILE
 export CASTAI_API_KEY="'"${CASTAI_API_KEY}"'"
+export OPENCODE_ENABLE_TELEMETRY=1
+export OPENCODE_OTLP_ENDPOINT="https://api.cast.ai/ai-optimizer/v1beta/logs:ingest"
+export OPENCODE_OTLP_METRICS_ENDPOINT="https://api.cast.ai/ai-optimizer/v1beta/metrics:ingest"
 alias opencode="kimchi opencode"
 PROFILE
     fi
