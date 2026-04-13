@@ -92,6 +92,17 @@ func (v *Riddle3Verifier) collectMetadata(ctx context.Context) map[string]string
 		}
 	}
 
+	// Fall back to deployment spec if no running pods (e.g. all OOMKilling)
+	if _, ok := meta["memory_request"]; !ok {
+		deploy, err := v.clientset.AppsV1().Deployments(v.namespace).Get(ctx, "stress-app", metav1.GetOptions{})
+		if err == nil && len(deploy.Spec.Template.Spec.Containers) > 0 {
+			memReq := deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory()
+			if memReq != nil {
+				meta["memory_request"] = memReq.String()
+			}
+		}
+	}
+
 	return meta
 }
 

@@ -24,11 +24,6 @@ for arg in "$@"; do
 done
 
 cleanup() {
-    # Restore patched manifest
-    if [ -f "$REPO_ROOT/progress-reconciler/manifests/deployment.yaml.bak" ]; then
-        mv "$REPO_ROOT/progress-reconciler/manifests/deployment.yaml.bak" \
-           "$REPO_ROOT/progress-reconciler/manifests/deployment.yaml"
-    fi
     if [ "$KIND_MANAGED" = true ]; then
         echo ""
         echo -e "${DIM}Cleaning up kind cluster...${NC}"
@@ -48,20 +43,6 @@ if [ "$KIND_MANAGED" = true ]; then
         kind create cluster --name $KIND_CLUSTER --wait 60s
     "
 
-    step "Build and load progress-reconciler image" bash -c "
-        docker build -t ghcr.io/castai/k8s-ai-workshop/progress-reconciler:latest '$REPO_ROOT/progress-reconciler'
-        kind load docker-image ghcr.io/castai/k8s-ai-workshop/progress-reconciler:latest --name $KIND_CLUSTER
-    "
-fi
-
-step "Cluster reachable" kubectl cluster-info
-
-if [ "$KIND_MANAGED" = true ]; then
-    # Patch progress-reconciler manifest to use local image (kind loads images locally)
-    step "Patch imagePullPolicy for kind" bash -c "
-        sed -i.bak 's/imagePullPolicy: Always/imagePullPolicy: IfNotPresent/' '$REPO_ROOT/progress-reconciler/manifests/deployment.yaml'
-    "
-
     # Install metrics-server for riddle 3 (lightweight, avoids full Prometheus stack)
     step "Install metrics-server" bash -c "
         helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ 2>/dev/null || true
@@ -72,6 +53,8 @@ if [ "$KIND_MANAGED" = true ]; then
             --wait --timeout 60s
     "
 fi
+
+step "Cluster reachable" kubectl cluster-info
 
 # --- Riddle 1 --------------------------------------------------------------
 echo ""

@@ -57,9 +57,12 @@ if ! kubectl cluster-info &>/dev/null; then
 fi
 
 # --- Deploy Progress Reconciler ---
-# See: progress-reconciler/deploy.sh
+# Non-fatal: riddle scenario should deploy even if the reconciler fails
 echo -e "${BLUE}Deploying Progress Reconciler...${NC}"
-"$SCRIPT_DIR/../../progress-reconciler/deploy.sh"
+if ! "$SCRIPT_DIR/../../progress-reconciler/deploy.sh"; then
+    echo -e "${YELLOW}⚠ Progress reconciler deployment failed (dashboard tracking may not work)${NC}"
+    echo -e "${YELLOW}  The riddle will still work — you can retry the reconciler later.${NC}"
+fi
 echo ""
 
 # Clean up if namespace already exists

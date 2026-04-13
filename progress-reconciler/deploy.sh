@@ -4,9 +4,20 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFESTS_DIR="${SCRIPT_DIR}/manifests"
+IMAGE="ghcr.io/castai/k8s-ai-workshop/progress-reconciler:latest"
 
 echo "🚀 Deploying Progress Reconciler..."
 echo ""
+
+# Detect kind cluster and build/load image locally if needed
+CLUSTER_NAME=$(kubectl config current-context 2>/dev/null | sed -n 's/^kind-//p')
+if [ -n "$CLUSTER_NAME" ]; then
+    echo "📦 Detected kind cluster '$CLUSTER_NAME' — building image locally..."
+    docker build -q -t "$IMAGE" "$SCRIPT_DIR" >/dev/null 2>&1
+    kind load docker-image "$IMAGE" --name "$CLUSTER_NAME" 2>/dev/null
+    echo "   ✓ Image loaded into kind"
+    echo ""
+fi
 
 # Apply manifests in order
 echo "📦 Creating namespace..."
@@ -27,7 +38,7 @@ kubectl apply -f "${MANIFESTS_DIR}/deployment.yaml"
 
 echo ""
 echo "⏳ Waiting for deployment to be ready..."
-kubectl wait --for=condition=available --timeout=60s \
+kubectl wait --for=condition=available --timeout=90s \
     deployment/progress-reconciler -n progress-reconciler
 
 echo ""

@@ -24,7 +24,7 @@ spec:
       containers:
       - name: reconciler
         image: ghcr.io/castai/k8s-ai-workshop/progress-reconciler:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
           name: http
