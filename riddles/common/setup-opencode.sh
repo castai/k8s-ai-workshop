@@ -9,7 +9,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # Register participant name in the Loveable dashboard (once, tracked via state file).
 if ! state_done "participant-registered"; then
-    read -p "Enter your name: " NAME
+    # Skip interactive prompt in non-TTY environments (CI)
+    if [ ! -t 0 ]; then
+        NAME="ci-runner"
+    else
+        read -p "Enter your name: " NAME
+    fi
 
     CLUSTER_UID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}' 2>/dev/null || echo "")
 
