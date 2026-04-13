@@ -16,8 +16,8 @@ for arg in "$@"; do
     esac
 done
 
-# Get participant name and register in the Loveable dashboard (skipped when --with-castai is passed).
-if [ "$WITH_CASTAI" = false ]; then
+# Register participant name in the Loveable dashboard (once, tracked via state file).
+if ! state_done "participant-registered"; then
     read -p "Enter your name: " NAME
 
     CLUSTER_UID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}')
@@ -27,13 +27,16 @@ if [ "$WITH_CASTAI" = false ]; then
       -d "{\"name\": \"$NAME\", \"cluster_uid\": \"$CLUSTER_UID\"}")
 
     if echo "$RESPONSE" | grep -q '"participant"'; then
-      echo "✅ Successfully registered in tracking dashboard, getting temporary k8s credentials..."
+      echo "✅ Successfully registered in tracking dashboard"
       echo ""
+      state_mark "participant-registered"
     else
       echo "❌ Registration failed:"
       echo "$RESPONSE"
       exit 1
     fi
+else
+    printf "  ${GREEN}[✓]${NC} Participant registered ${DIM}(cached)${NC}\n"
 fi
 
 echo "=================================================="
