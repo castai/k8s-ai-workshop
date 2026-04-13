@@ -31,8 +31,7 @@ Your mission: **build the scaling and resilience infrastructure** that should ha
 ## Setup
 
 ```bash
-cd riddles/02-scaling-under-pressure
-./setup.sh
+$HOME/workshop/riddles/02-scaling-under-pressure/setup.sh
 ```
 
 ## Step 1: Observe the Load
