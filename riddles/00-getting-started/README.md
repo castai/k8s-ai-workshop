@@ -48,4 +48,14 @@ Both commands should return a version number without errors.
 
 ---
 
-You are now ready to proceed to [Riddle 1: Advanced Cluster Debugging](../01-cluster-debugging/README.md).
+You are now ready to proceed to the workshop riddles.
+
+You have two paths to complete the workshop:
+
+**Path 1: Solve riddles step-by-step with AI agent assistance**
+Start with [Riddle 1: Advanced Cluster Debugging](../01-cluster-debugging/README.md) and proceed through the riddles in order.
+
+**Path 2: Build an autonomous agent that solves all riddles for you**
+Skip to [Riddle 4: Build an Autonomous Agent](../04-the-agent/README.md) to build your own agent that solves all three riddles automatically.
+
+<em>Note: If you choose Path 2 (building an autonomous agent), you will find the detailed instructions in riddle 4. Otherwise, follow Path 1 to solve the riddles step-by-step.</em>
