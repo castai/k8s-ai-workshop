@@ -13,7 +13,7 @@ git clone https://github.com/castai/k8s-ai-workshop.git $HOME/workshop
 ```
 
 ## Step 2: Register on Kimchi
-
+![Kimchi signup page](kimchi-signup.png)
 1. Open your browser and go to [https://kimchi.dev](https://kimchi.dev)
 2. Click **Start free** to create your account
 3. Complete the registration process
