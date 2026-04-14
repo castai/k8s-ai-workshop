@@ -53,11 +53,8 @@ const client = new OpenAI({
 **Quick connectivity test:**
 
 ```bash
-curl -s https://llm.kimchi.dev/openai/v1/chat/completions \
-  -H "Authorization: Bearer ${KIMCHI_API_KEY:-$CASTAI_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"model": "<your-model>", "messages": [{"role": "user", "content": "Say hello"}]}' \
-  | python3 -m json.tool
+# Pass your API key as an argument, or set KIMCHI_API_KEY / CASTAI_API_KEY
+$HOME/workshop/riddles/04-the-agent/test-api.sh
 ```
 
 ---
