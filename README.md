@@ -120,7 +120,7 @@ $HOME/workshop/riddles/00-getting-started/setup.sh
 # See instructions in riddles/04-the-agent/README.md
 ```
 
-<em>Note: If you choose Path 2 (building an autonomous agent), you will find the detailed instructions in riddle 4. Otherwise, follow Path 1 to solve the riddles step-by-step.</em>
+<em>Note: If you choose Path 2 (building an autonomous agent), you will find the detailed instructions README.md in riddle 4 under workshop/04-the-agent. Otherwise, follow Path 1 to solve the riddles step-by-step.</em>
 
 ## The Three Riddles
 
