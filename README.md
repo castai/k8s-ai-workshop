@@ -35,6 +35,9 @@ k8s-ai-workshop/
 |   |   |-- verify.sh               #     Check progress + scoring (5 checks)
 |   |   +-- broken/                 #     stress-app manifest
 |   |
+|   |-- 04-the-agent/               #   Bonus: build an autonomous agent that solves all riddles
+|   |   +-- README.md               #     Challenge description and API details
+|   |
 |   +-- common/                     # Shared utilities
 |       |-- lib.sh                  #   Colors, step runner, state file, verifier helpers
 |       |-- bootstrap.sh            #   Kimchi CLI + OpenCode one-shot setup
