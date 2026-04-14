@@ -97,14 +97,37 @@ state_reset() {
 }
 
 # --- Verifier binary -------------------------------------------------------
-# Builds the Go verifier binary if missing or source is newer.
-# Sets VERIFIER_BIN to the path of the built binary.
+# Downloads the pre-built verifier binary from GitHub Releases.
+# Falls back to go build if the download fails.
 _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERIFIER_BIN="${_LIB_DIR}/../../progress-reconciler/reconciler"
 _RECONCILER_DIR="${_LIB_DIR}/../../progress-reconciler"
+_VERIFIER_RELEASE_URL="https://github.com/castai/k8s-ai-workshop/releases/download/verifier-latest"
 
 ensure_verifier() {
-  if [ ! -x "$VERIFIER_BIN" ] || [ "$(find "$_RECONCILER_DIR" -name '*.go' -newer "$VERIFIER_BIN" 2>/dev/null | head -1)" ]; then
+  if [ ! -x "$VERIFIER_BIN" ]; then
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+      x86_64)  arch="amd64" ;;
+      aarch64) arch="arm64" ;;
+      *)
+        printf "  ${YELLOW}[!]${NC} Unknown arch %s, falling back to go build\n" "$arch" >&2
+        arch=""
+        ;;
+    esac
+
+    if [ -n "$arch" ]; then
+      local url="${_VERIFIER_RELEASE_URL}/reconciler_linux_${arch}"
+      printf "  ${DIM}Downloading verifier...${NC}" >&2
+      if curl -fsSL "$url" -o "$VERIFIER_BIN" 2>/dev/null && chmod +x "$VERIFIER_BIN"; then
+        printf "\r  ${GREEN}[✓]${NC} Verifier ready            \n" >&2
+        return 0
+      fi
+      printf "\r  ${YELLOW}[!]${NC} Download failed, falling back to go build\n" >&2
+      rm -f "$VERIFIER_BIN"
+    fi
+
     if ! command -v go &>/dev/null; then
       printf "  ${RED}[✗]${NC} Go compiler not found (required to build verifier)\n" >&2
       printf "      Install Go from https://go.dev/dl/ or use your package manager\n" >&2
