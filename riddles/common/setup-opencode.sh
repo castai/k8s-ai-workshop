@@ -114,7 +114,14 @@ except (FileNotFoundError, json.JSONDecodeError):
 # Patch in required keys (preserve everything else)
 config["$schema"] = "https://opencode.ai/config.json"
 config["compaction"] = {"auto": True}
-config["model"] = "kimchi/kimi-k2.5"
+config["model"] = "kimchi/minimax-m2.7"
+# Pre-define the kimchi-auto agent with minimax-m2.7 so the plugin's
+# "if (!config.agent[KIMCHI_AGENT_NAME])" guard preserves our choice
+# instead of defaulting to the "auto" routing model.
+config.setdefault("agent", {})["kimchi-auto"] = {
+    "model": "kimchi/minimax-m2.7",
+    "mode": "primary",
+}
 config.setdefault("permission", {}).setdefault("*", {})["*"] = "allow"
 config.setdefault("mcp", {})["kubernetes"] = k8s_mcp
 config["plugin"] = [

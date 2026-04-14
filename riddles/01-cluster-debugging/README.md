@@ -68,6 +68,14 @@ The dashboard shows live order processing status and will reflect your progress 
 
 ## Where to Start
 
+Start by asking opencode to help you investigate the cluster. The AI agent has been loaded with the k8s-cluster-debug skill to guide you through systematic debugging.
+
+You can ask opencode things like:
+- "Give me an overview of the riddle-1 namespace"
+- "What pods are not in a healthy Running/Ready state?"
+- "Help me investigate the issues in dependency order"
+
+If you prefer to use kubectl directly, you can:
 1. Get a broad overview of the namespace: `kubectl get all -n riddle-1`
 2. Look for pods that aren't in a healthy Running/Ready state
 3. Use `kubectl describe` and `kubectl logs` to investigate
