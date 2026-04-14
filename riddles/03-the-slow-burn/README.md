@@ -18,6 +18,18 @@ $HOME/workshop/riddles/03-the-slow-burn/setup.sh
 
 ## Your Mission
 
+Start by asking opencode to help you investigate the cluster. The AI agent has been loaded with the k8s-resource-rightsizing skill to guide you through observing, diagnosing, and fixing the OOMKilled workload.
+
+You can ask opencode things like:
+- "Help me watch the pods to see what happens over time"
+- "Show me how to check why the container was killed"
+- "Guide me through observing the memory usage pattern over time"
+- "Help me check the current resource configuration"
+- "Show me how to apply a fix with proper headroom"
+- "Help me verify the stability after applying the fix"
+
+If you prefer to use kubectl directly:
+
 1. **Watch the pods**  - `kubectl get pods -n riddle-3 -w` and give it time. What happens?
 2. **Understand why**  - What killed the container? Check the pod description for termination details.
 3. **Observe the usage pattern**  - Run `kubectl top pods -n riddle-3` several times over 1-2 minutes. How does memory usage change over time?

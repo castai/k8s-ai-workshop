@@ -2,78 +2,6 @@
 
 Common issues and solutions for the Kubernetes AI-Powered Operations Workshop.
 
-## Cluster Setup Issues
-
-### kind Cluster Won't Start
-
-**Symptoms**: `Error: failed to create cluster`
-
-**Solutions**:
-```bash
-# Check Docker is running
-docker info
-
-# Delete existing cluster
-kind delete cluster --name workshop-cluster
-
-# Clean up Docker
-docker container prune -f
-docker volume prune -f
-
-# Recreate cluster
-./setup/install-kind.sh
-```
-
-### Insufficient Docker Resources
-
-**Symptoms**: Pods stuck in Pending, nodes show MemoryPressure
-
-**Solutions**:
-1. Open Docker Desktop → Settings → Resources
-2. Increase Memory to 12-16GB
-3. Increase CPU to 6-8 cores
-4. Restart Docker Desktop
-5. Recreate cluster
-
-### Nodes Not Ready
-
-**Symptoms**: `kubectl get nodes` shows NotReady
-
-**Solutions**:
-```bash
-# Check node details
-kubectl describe nodes
-
-# Check system pods
-kubectl get pods -n kube-system
-
-# If CNI issue, restart kind
-kind delete cluster --name workshop-cluster
-./setup/install-kind.sh
-```
-
-## metrics-server Issues
-
-### metrics-server Not Working
-
-**Symptoms**: `kubectl top nodes` returns error
-
-**Solutions**:
-```bash
-# Check metrics-server pods
-kubectl get pods -n kube-system -l k8s-app=metrics-server
-
-# Check logs
-kubectl logs -n kube-system -l k8s-app=metrics-server
-
-# Reinstall
-helm delete metrics-server -n kube-system
-./setup/install-monitoring.sh
-
-# Wait 60 seconds for metrics to populate
-sleep 60
-kubectl top nodes
-```
 
 ## Riddle-Specific Issues
 
@@ -81,77 +9,40 @@ kubectl top nodes
 
 #### Pods Still Failing After Fixes
 
-**Check**:
-```bash
-# Get an overview of all pods
-kubectl get pods -n riddle-1
-
-# Check events for errors
-kubectl get events -n riddle-1 --sort-by='.lastTimestamp'
-
-# Verify service endpoints exist
-kubectl get endpoints -n riddle-1
-```
+You can use opencode to help investigate:
+- Ask opencode to get an overview of all pods in riddle-1
+- Ask opencode to check events for errors sorted by timestamp
+- Ask opencode to verify service endpoints exist
 
 #### API Gateway Not Accessible
 
-**Solutions**:
-```bash
-# Check service endpoints
-kubectl get endpoints -n riddle-1 api-gateway
-
-# Verify NodePort
-kubectl get svc api-gateway -n riddle-1
-
-# Try port-forward
-kubectl port-forward -n riddle-1 svc/api-gateway 8080:8080
-curl http://localhost:8080
-
-# Check if the pod is Running
-kubectl get pods -n riddle-1 -l app=api-gateway
-```
+You can ask opencode to help with:
+- Checking service endpoints for api-gateway
+- Verifying the NodePort configuration
+- Trying port-forward to access the service
+- Checking if the api-gateway pod is Running
 
 ### Riddle 2: Scaling Under Pressure
 
 #### HPA Shows "unknown" Metrics
 
-**Symptoms**: `kubectl get hpa` shows `<unknown>` for targets
+**Symptoms**: HPA shows `<unknown>` for targets
 
-**Solutions**:
-```bash
-# Check metrics-server is working
-kubectl top nodes
-kubectl top pods -n riddle-2
-
-# Verify resource requests are defined on the deployment
-kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
-
-# Wait for metrics to populate (60 seconds after creating HPA)
-kubectl get hpa -n riddle-2
-
-# Check HPA conditions
-kubectl describe hpa -n riddle-2
-```
+You can ask opencode to help with:
+- Checking if metrics-server is working by running top commands
+- Verifying resource requests are defined on the deployment
+- Getting HPA status to see if metrics have populated
+- Describing HPA to check conditions
 
 #### HPA Not Scaling
 
 **Symptoms**: Pod count doesn't change under load
 
-**Solutions**:
-```bash
-# Check HPA status and events
-kubectl describe hpa -n riddle-2
-
-# Verify load is actually high
-kubectl top pods -n riddle-2
-
-# Check HPA events
-kubectl get events -n riddle-2 | grep -i hpa
-
-# Check if resource requests are realistic  - very low requests
-# cause HPA to compute absurdly high utilization percentages
-kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
-```
+You can ask opencode to help with:
+- Checking HPA status and events
+- Verifying if load is actually high
+- Checking HPA events
+- Checking if resource requests are realistic (very low requests cause HPA to compute absurdly high utilization percentages)
 
 ### Riddle 3: The Slow Burn
 
@@ -159,36 +50,20 @@ kubectl get deployment web-frontend -n riddle-2 -o yaml | grep -A 5 resources
 
 **Symptoms**: Pods cycle between Running and OOMKilled with increasing restart counts
 
-**Solutions**:
-```bash
-# Check pod status and restart counts
-kubectl get pods -n riddle-3
-
-# Check the termination reason
-kubectl describe pod -l app=stress-app -n riddle-3
-
-# Watch memory usage over time (run multiple times)
-kubectl top pods -n riddle-3
-
-# Check current resource configuration
-kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
-```
+You can ask opencode to help with:
+- Checking pod status and restart counts
+- Checking the termination reason from pod description
+- Watching memory usage over time
+- Checking current resource configuration for the stress-app deployment
 
 #### Fix Applied But Pods Still OOMKilling
 
 **Symptoms**: Changed resource values but pods still crash
 
-**Solutions**:
-```bash
-# Verify the new values actually took effect
-kubectl get deployment stress-app -n riddle-3 -o yaml | grep -A 8 resources
-
-# Wait for rollout to complete
-kubectl rollout status deployment/stress-app -n riddle-3
-
-# Watch pods for at least 2-3 minutes to cover the full usage cycle
-kubectl get pods -n riddle-3 -w
-```
+You can ask opencode to help with:
+- Verifying the new values actually took effect
+- Waiting for rollout to complete
+- Watching pods for at least 2-3 minutes to cover the full usage cycle
 
 ## AI Integration Issues
 

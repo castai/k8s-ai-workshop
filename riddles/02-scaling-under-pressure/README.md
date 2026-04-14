@@ -29,7 +29,16 @@ $HOME/workshop/riddles/02-scaling-under-pressure/setup.sh
 
 ## Your Mission
 
-The load generator is already running. Services are struggling. Your job is to build the scaling and resilience infrastructure that's missing. There are **5 things** you need to do:
+Start by asking opencode to help you investigate the cluster. The AI agent has been loaded with the k8s-scaling-under-pressure skill to guide you through configuring scaling and resilience.
+
+You can ask opencode things like:
+- "Help me observe what's happening with the services under load"
+- "Show me how to right-size resource requests for autoscaling"
+- "Guide me through adding horizontal pod autoscaling"
+- "Help me protect availability with PodDisruptionBudgets"
+- "Show me how to spread replicas across nodes"
+
+If you prefer to use kubectl directly, the load generator is already running. Services are struggling. Your job is to build the scaling and resilience infrastructure that's missing. There are **5 things** you need to do:
 
 1. **Observe**  - Start by understanding what's happening. How much CPU are the services actually using? (`kubectl top pods -n riddle-2`)
 2. **Right-size resource requests**  - The CPU requests don't match reality. Why does this matter for autoscaling? (Hint: HPA calculates utilization as `current_usage / request`)
