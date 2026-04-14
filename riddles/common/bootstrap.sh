@@ -50,7 +50,6 @@ export CASTAI_API_KEY="'"${CASTAI_API_KEY}"'"
 export OPENCODE_ENABLE_TELEMETRY=1
 export OPENCODE_OTLP_ENDPOINT="https://api.cast.ai/ai-optimizer/v1beta/logs:ingest"
 export OPENCODE_OTLP_METRICS_ENDPOINT="https://api.cast.ai/ai-optimizer/v1beta/metrics:ingest"
-alias opencode="kimchi opencode"
 PROFILE
     fi
   '
@@ -103,5 +102,5 @@ source ~/.bashrc 2>/dev/null || true
 echo ""
 echo -e "  ${GREEN}${BOLD}Setup complete!${NC}"
 echo ""
-echo -e "  Run ${BLUE}opencode${NC} to start coding."
+echo -e "  Run ${BLUE}kimchi opencode${NC} to start coding."
 echo ""
