@@ -2,11 +2,8 @@ package verifiers
 
 import (
 	"context"
-	"io"
 	"log"
-	"net/http"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -222,39 +219,28 @@ func (v *Riddle1Verifier) checkAllServicesHaveEndpoints(ctx context.Context) boo
 	return len(services.Items) > 0
 }
 
-// Check 7: Entry point accessible
+// Check 7: Entry point accessible (via exec into a pod, works both in-cluster and from CLI)
 func (v *Riddle1Verifier) checkEntryPointAccessible(ctx context.Context) bool {
-	// Create fresh client with no connection reuse
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			DisableKeepAlives:   true,
-			MaxIdleConns:        1,
-			MaxIdleConnsPerHost: 1,
-		},
-	}
-
-	// Use service name with namespace
-	url := "http://api-gateway." + v.namespace + ":80"
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		log.Printf("    Check 7 error creating request for %s: %v", url, err)
+	// Find config-service pod to use as tester (same as checks 8/9)
+	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=config-service",
+	})
+	if err != nil || len(pods.Items) == 0 {
+		log.Printf("    Check 7: no config-service pod found to test from")
 		return false
 	}
 
-	resp, err := client.Do(req)
+	testerPod := pods.Items[0].Name
+	url := "http://api-gateway:80"
+	output, err := v.execInPod(ctx, testerPod, []string{"wget", "-q", "-O-", "-T", "5", "--server-response", url})
 	if err != nil {
-		log.Printf("    Check 7 error accessing %s: %v", url, err)
+		log.Printf("    Check 7 error accessing %s via exec in %s: %v", url, testerPod, err)
 		return false
 	}
-	defer resp.Body.Close()
 
-	success := resp.StatusCode >= 200 && resp.StatusCode < 400
-	if !success {
-		log.Printf("    Check 7 got status code: %d from %s", resp.StatusCode, url)
-	}
-	return success
+	// wget succeeded (exit 0) means HTTP 2xx/3xx
+	_ = output
+	return true
 }
 
 // Check 8: Core services reachable from within cluster
@@ -308,32 +294,26 @@ func (v *Riddle1Verifier) checkAnalyticsServiceOperational(ctx context.Context) 
 	return true
 }
 
-// Check 10: Dashboard reports "All systems nominal"
+// Check 10: Dashboard reports "All systems nominal" (via exec into a pod)
 func (v *Riddle1Verifier) checkDashboardReportsNominal(ctx context.Context) bool {
-	// Create fresh client with no connection reuse
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-		},
-	}
-
-	// Use service name with namespace
-	url := "http://api-gateway." + v.namespace + ":80"
-	resp, err := client.Get(url)
-	if err != nil {
-		log.Printf("    Check 10 error accessing %s: %v", url, err)
-		return false
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("    Check 10 error reading body: %v", err)
+	// Find config-service pod to use as tester (same as checks 7/8/9)
+	pods, err := v.clientset.CoreV1().Pods(v.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=config-service",
+	})
+	if err != nil || len(pods.Items) == 0 {
+		log.Printf("    Check 10: no config-service pod found to test from")
 		return false
 	}
 
-	contains := strings.Contains(string(body), "All systems nominal")
+	testerPod := pods.Items[0].Name
+	url := "http://api-gateway:80"
+	output, err := v.execInPod(ctx, testerPod, []string{"wget", "-q", "-O-", "-T", "5", url})
+	if err != nil {
+		log.Printf("    Check 10 error accessing %s via exec in %s: %v", url, testerPod, err)
+		return false
+	}
+
+	contains := strings.Contains(output, "All systems nominal")
 	if !contains {
 		log.Printf("    Check 10: 'All systems nominal' not found in response")
 	}
