@@ -88,6 +88,9 @@ k8s-ai-workshop/
 
 ### Participant Flow
 
+You have two paths to complete the workshop:
+
+**Path 1: Solve riddles step-by-step with AI agent assistance**
 ```bash
 # 0. Clone repo, register at kimchi.dev, get API key, install Kimchi CLI
 git clone https://github.com/castai/k8s-ai-workshop.git $HOME/workshop
@@ -106,6 +109,18 @@ $HOME/workshop/riddles/02-scaling-under-pressure/verify.sh
 $HOME/workshop/riddles/03-the-slow-burn/setup.sh
 $HOME/workshop/riddles/03-the-slow-burn/verify.sh
 ```
+
+**Path 2: Build an autonomous agent that solves all riddles for you**
+```bash
+# 0. Clone repo, register at kimchi.dev, get API key, install Kimchi CLI
+git clone https://github.com/castai/k8s-ai-workshop.git $HOME/workshop
+$HOME/workshop/riddles/00-getting-started/setup.sh
+
+# Skip to Riddle 4: Build your autonomous agent
+# See instructions in riddles/04-the-agent/README.md
+```
+
+<em>Note: If you choose Path 2 (building an autonomous agent), you will find the detailed instructions README.md in riddle 4 under workshop/04-the-agent. Otherwise, follow Path 1 to solve the riddles step-by-step.</em>
 
 ## The Three Riddles
 

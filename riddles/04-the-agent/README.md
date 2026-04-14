@@ -1,8 +1,8 @@
-# Bonus: The Agent
+# Riddle 4: Build an Autonomous Agent
 
 **Duration:** Open-ended | **Difficulty:** Advanced
 
-You solved the riddles with an AI assistant at your side. Now flip the script.
+This is the alternative path to completing the workshop. Instead of solving the riddles step-by-step with AI assistance, you will build your own autonomous agent that solves all three riddles without human intervention.
 
 **Write an autonomous agent that solves all three riddles without human intervention.**
 
